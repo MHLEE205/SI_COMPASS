@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<script>
+  if (location.search.includes('code=')) {
+    const code = new URLSearchParams(location.search).get('code');
+    if (window.opener) { window.opener.postMessage({ code }, location.origin); window.close(); }
+  }
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>LEENAI COMPASS SI ツール v1.3</title>
@@ -205,12 +211,23 @@ select.fi{cursor:pointer;height:34px;}
 </head>
 <body>
 
+<div id="loginGate" style="display:flex;position:fixed;inset:0;background:#0f1117;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+  <div style="font-size:40px;font-weight:800;letter-spacing:3px;color:#e2e8f0;">LEEN<span style="color:#4f8ef7">AI</span></div>
+  <div style="font-size:13px;color:#8892a4;font-weight:500;">COMPASS SI入力支援</div>
+  <div style="width:48px;height:1px;background:#2e3350;margin:12px 0;"></div>
+  <div style="font-size:12px;color:#4a5568;text-align:center;line-height:1.8;">このツールを使用するには<br>Outlookアカウントでのログインが必要です</div>
+  <button id="gateLoginBtn" onclick="gateLogin()" style="margin-top:8px;background:#4f8ef7;color:#fff;border:none;padding:11px 32px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Segoe UI',sans-serif;display:inline-flex;align-items:center;gap:8px;">🔑 Outlookでログイン</button>
+  <div id="gateStatus" style="font-size:11px;color:#8892a4;height:18px;"></div>
+</div>
+
 <div class="hdr">
   <div>
     <div class="hdr-logo">📝 LEENAI COMPASS SI ツール</div>
     <div class="hdr-sub" id="header-sub">LEENEAR CORPORATION — v1.3 (2026-03-28)</div>
   </div>
   <div class="hdr-badge">COMPASS SI入力支援</div>
+  <span id="authStatus" style="font-size:12px;color:#8892a4;margin-right:8px;">⚪ 未ログイン</span>
+  <button id="authBtn" onclick="toggleAuth()" style="background:transparent;color:#8892a4;border:1px solid #2e3350;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Segoe UI',sans-serif;">🔑 Outlookログイン</button>
 </div>
 
 <!-- API KEY -->
@@ -409,6 +426,72 @@ select.fi{cursor:pointer;height:34px;}
 </div>
 
 <script>
+// ── OAuth2 PKCE ─────────────────────────────────────────────
+const OAUTH_CFG = {
+  clientId: 'f071a165-5e9b-44bf-b6a1-baba654524db',
+  tenantId: 'a56988ff-c2b8-4df8-9727-889ad4205198',
+  scopes:   'User.Read offline_access',
+  redirectUri: 'https://mhlee205.github.io/SI_COMPASS/'
+};
+let loggedIn = false, loggedInUser = '', accessToken = '';
+
+function _b64url(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
+async function _sha256(s){ return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); }
+async function startOAuthFlow(){
+  const verifier = _b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = _b64url(await _sha256(verifier));
+  sessionStorage.setItem('pkce_v', verifier);
+  const p = new URLSearchParams({ client_id:OAUTH_CFG.clientId, response_type:'code', redirect_uri:OAUTH_CFG.redirectUri, scope:OAUTH_CFG.scopes, code_challenge:challenge, code_challenge_method:'S256', response_mode:'query' });
+  const popup = window.open(`https://login.microsoftonline.com/${OAUTH_CFG.tenantId}/oauth2/v2.0/authorize?${p}`, 'oauth', 'width=520,height=620');
+  return new Promise((resolve, reject) => {
+    const handler = async (e) => {
+      if (!e.data?.code) return;
+      window.removeEventListener('message', handler);
+      try {
+        const body = new URLSearchParams({ client_id:OAUTH_CFG.clientId, grant_type:'authorization_code', code:e.data.code, redirect_uri:OAUTH_CFG.redirectUri, code_verifier:sessionStorage.getItem('pkce_v') });
+        const r = await fetch(`https://login.microsoftonline.com/${OAUTH_CFG.tenantId}/oauth2/v2.0/token`, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+        const t = await r.json();
+        if (t.error) throw new Error(t.error_description || t.error);
+        accessToken = t.access_token;
+        const u = await (await fetch('https://graph.microsoft.com/v1.0/me', {headers:{Authorization:'Bearer '+accessToken}})).json();
+        loggedIn = true; loggedInUser = u.displayName || u.mail || u.userPrincipalName;
+        updateAuthUI(true, loggedInUser); resolve();
+      } catch(err){ reject(err); }
+    };
+    window.addEventListener('message', handler);
+    const iv = setInterval(() => { if (popup.closed){ clearInterval(iv); window.removeEventListener('message',handler); reject(new Error('CANCELLED')); } }, 500);
+  });
+}
+function toggleAuth(){
+  if (loggedIn){ loggedIn=false; loggedInUser=''; accessToken=''; updateAuthUI(false); }
+  else { startOAuthFlow().catch(e => { if (e.message!=='CANCELLED') console.error(e); }); }
+}
+function updateAuthUI(isLoggedIn, user){
+  const st = document.getElementById('authStatus');
+  const btn = document.getElementById('authBtn');
+  if (!st || !btn) return;
+  if (isLoggedIn){
+    st.textContent = `🟢 ${user}`; st.style.color = '#22c55e';
+    btn.textContent = '🔓 ログアウト';
+    const gate = document.getElementById('loginGate'); if (gate) gate.style.display = 'none';
+  } else {
+    st.textContent = '⚪ 未ログイン'; st.style.color = '';
+    btn.textContent = '🔑 Outlookログイン';
+  }
+}
+async function gateLogin() {
+  const btn = document.getElementById('gateLoginBtn');
+  btn.disabled = true;
+  document.getElementById('gateStatus').textContent = 'ログイン中...';
+  try {
+    await startOAuthFlow();
+  } catch(e) {
+    btn.disabled = false;
+    document.getElementById('gateStatus').textContent = e.message !== 'CANCELLED' ? 'エラー: ' + e.message : '';
+  }
+}
+// ── end OAuth ────────────────────────────────────────────────
+
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
