@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.3</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.4</title>
 <style>
 /* ── Base ── */
 :root {
@@ -291,7 +291,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.3</span>
+    <span class="hdr-ver" id="header-sub">v1.4</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -431,7 +431,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.3</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.4</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -444,8 +444,8 @@ const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-// v1.3: offline_access追加 → refresh_tokenでGraph連携
-const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation offline_access openid profile';
+// v1.4: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
+const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
 const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
 const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
 const SP_DRIVE_ID  = 'b!ZK58_9YllU-vETQD3Xz0TbOInXbVCXJHnQ2280KJBArFLeM_18EgRbSeoO-TW__U';
@@ -510,6 +510,7 @@ async function startLogin(){
   const state=randomStr(16);
   sessionStorage.setItem('pkce_v',verifier);
   sessionStorage.setItem('pkce_s',state);
+  sessionStorage.setItem('pkce_type','dv'); // v1.4: フロー識別
   const p=new URLSearchParams({
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_DV,
@@ -519,23 +520,80 @@ async function startLogin(){
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
+// v1.4: DV認証完了後にGraph tokenをprompt=noneでサイレント取得
+async function startGraphSilent(){
+  const verifier=randomStr(64);
+  const challenge=b64url(await sha256(verifier));
+  const state=randomStr(16);
+  sessionStorage.setItem('pkce_v',verifier);
+  sessionStorage.setItem('pkce_s',state);
+  sessionStorage.setItem('pkce_type','graph');
+  const p=new URLSearchParams({
+    client_id:CLIENT_ID,response_type:'code',
+    redirect_uri:REDIRECT_URI,scope:SCOPE_GRAPH,
+    state,code_challenge:challenge,code_challenge_method:'S256',
+    prompt:'none' // 既存セッションを使いUI表示なし
+  });
+  location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
+}
+
+// v1.4: Graph redirectから戻った後にDVセッションを復元
+function restoreDvSession(){
+  const token=sessionStorage.getItem('dv_token');
+  const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
+  const user=sessionStorage.getItem('dv_user')||'';
+  if(token && expiry>Date.now()){
+    S.token=token; S.tokenExpiry=expiry; S.userName=user;
+    setConnected(true);
+  }else{
+    setConnected(false); // DV期限切れ→再ログイン
+  }
+}
+
 async function handleCallback(){
   const p=new URLSearchParams(location.search);
   const code=p.get('code');
-  if(!code) return;
+  const type=sessionStorage.getItem('pkce_type')||'dv';
+
+  // prompt=none失敗時 (interaction_required等) — Graph静かに諦める
+  if(!code){
+    const err=p.get('error');
+    if(err && type==='graph'){
+      history.replaceState({},'',location.pathname);
+      sessionStorage.removeItem('pkce_type');
+      restoreDvSession();
+    }
+    return;
+  }
+
   history.replaceState({},'',location.pathname);
   const verifier=sessionStorage.getItem('pkce_v');
   if(!verifier){showStatus('loadStatus','err','セッション期限切れ。再ログインしてください。');return;}
+
   try{
     const res=await fetch(
       `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
       {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
        body:new URLSearchParams({
          client_id:CLIENT_ID,grant_type:'authorization_code',
-         code,redirect_uri:REDIRECT_URI,code_verifier:verifier,scope:SCOPE_DV
+         code,redirect_uri:REDIRECT_URI,code_verifier:verifier,
+         scope:type==='graph'?SCOPE_GRAPH:SCOPE_DV
        })}
     );
     const data=await res.json();
+
+    // ── Graph callbackフロー ──
+    if(type==='graph'){
+      sessionStorage.removeItem('pkce_type');
+      if(data.access_token){
+        S.graphToken=data.access_token;
+        S.graphTokenExpiry=Date.now()+(data.expires_in-60)*1000;
+      }
+      restoreDvSession();
+      return;
+    }
+
+    // ── Dataverse callbackフロー ──
     if(!data.access_token) throw new Error(data.error_description||'Token取得失敗');
     S.token=data.access_token;
     S.tokenExpiry=Date.now()+(data.expires_in-60)*1000;
@@ -545,25 +603,13 @@ async function handleCallback(){
         S.userName=pl.name||pl.preferred_username||'';
       }catch(e){}
     }
-    // v1.3: refresh_tokenでGraph APIトークンをサイレント取得（リダイレクト不要）
-    if(data.refresh_token){
-      try{
-        const gRes=await fetch(
-          `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
-          {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-           body:new URLSearchParams({
-             client_id:CLIENT_ID,grant_type:'refresh_token',
-             refresh_token:data.refresh_token,scope:SCOPE_GRAPH
-           })}
-        );
-        const gData=await gRes.json();
-        if(gData.access_token){
-          S.graphToken=gData.access_token;
-          S.graphTokenExpiry=Date.now()+(gData.expires_in-60)*1000;
-        }
-      }catch(e){ /* Graph token失敗は無視 — 手動フォールバック */ }
-    }
-    setConnected(true);
+    // DV情報をsessionStorageに退避 (Graph redirect後に復元)
+    sessionStorage.setItem('dv_token',S.token);
+    sessionStorage.setItem('dv_expiry',String(S.tokenExpiry));
+    sessionStorage.setItem('dv_user',S.userName);
+    // Graph tokenをサイレント取得 (redirect → Graph callback → restoreDvSession)
+    await startGraphSilent();
+    // ↑ redirectするため以降のコードは実行されない
   }catch(e){
     showStatus('loadStatus','err','認証エラー: '+e.message);
   }
