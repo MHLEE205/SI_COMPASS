@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.5</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.06</title>
 <style>
 /* ── Base ── */
 :root {
@@ -291,7 +291,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.5</span>
+    <span class="hdr-ver" id="header-sub">v1.06</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -431,7 +431,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.5</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.06</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -444,7 +444,7 @@ const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-// v1.5: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
+// v1.06: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
 const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
 const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
 const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
@@ -510,7 +510,7 @@ async function startLogin(){
   const state=randomStr(16);
   sessionStorage.setItem('pkce_v',verifier);
   sessionStorage.setItem('pkce_s',state);
-  sessionStorage.setItem('pkce_type','dv'); // v1.5: フロー識別
+  sessionStorage.setItem('pkce_type','dv'); // v1.06: フロー識別
   const p=new URLSearchParams({
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_DV,
@@ -520,7 +520,7 @@ async function startLogin(){
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.5: DV認証完了後にGraph tokenを取得 (初回のみ同意画面、以降はスキップ)
+// v1.06: DV認証完了後にGraph tokenを取得 (初回のみ同意画面、以降はスキップ)
 async function startGraphAuth(){
   const verifier=randomStr(64);
   const challenge=b64url(await sha256(verifier));
@@ -537,7 +537,7 @@ async function startGraphAuth(){
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.5: Graph redirectから戻った後にDVセッションを復元
+// v1.06: Graph redirectから戻った後にDVセッションを復元
 function restoreDvSession(){
   const token=sessionStorage.getItem('dv_token');
   const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
@@ -908,7 +908,8 @@ async function autoLoadLcJson(){
     showStatus('lcAutoStatus','warn','⚠ SharePoint未接続（Graph tokenなし）。手動読込を使用してください。');
     return;
   }
-  const fileName=`${contractNo}_${lcNo}.json`;
+  const lcNoClean=lcNo.split(/\s/)[0]; // "ILC2603819 DATED ON..." → "ILC2603819"
+  const fileName=`${contractNo}_${lcNoClean}.json`;
   showStatus('lcAutoStatus','info',`<span class="spin">⟳</span> ${fileName} を取得中...`);
   // 検索パス: D-01-LC_FD_CHECKER 優先、▲ LC_LEENAI_JSON フォールバック
   const spPaths=[
