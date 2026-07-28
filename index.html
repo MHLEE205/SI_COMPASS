@@ -258,11 +258,14 @@ input,select{font-family:inherit;}
   body{background:#fff!important;color:#000!important;}
   .hdr,.tabs,.auth-bar,.doc-actions,.card,.check-wrap,.status,.lc-json-row,
   .doc-section-title,.btn,.form-row,.no-print,.powered{display:none!important;}
-  .panel{display:block!important;}
-  /* v1.3: cert-wrap単位でページ強制改ページ */
+  /* v1.06: 非activeパネルを非表示 → printDocs()のタブ別印刷を正常化 */
+  .main{padding:0!important;max-width:100%!important;}
+  .panel{display:none!important;}
+  .panel.active{display:block!important;}
   .cert-wrap{border:none;padding:0;margin-bottom:0;
-    break-after:page;page-break-after:always;}
-  .cert-wrap:last-of-type{break-after:avoid;page-break-after:avoid;}
+    break-after:page;page-break-after:always;break-inside:avoid;}
+  /* :last-child で末尾cert-wrapのみbreak-avoid (last-of-typeは各パネルに誤適用されるため変更) */
+  .cert-wrap:last-child{break-after:avoid;page-break-after:avoid;}
   .cert-doc{display:block;}
 }
 
@@ -1466,7 +1469,9 @@ function getPoLine(){
   const poNo=S.poNo||S.lcJson?.commodity45A&&extractPO(S.lcJson.commodity45A)||'';
   const poDate=S.poDate||'';
   if(!poNo) return '';
-  const d=poDate?`DATE ${poDate}`:'' ;
+  // v1.06: crcf9_allに既にOTHER TERMSが含まれていれば重複を避ける
+  if(S.allText && S.allText.toUpperCase().includes('OTHER TERMS')) return '';
+  const d=poDate?`DATE ${poDate}`:'';
   return `+ OTHER TERMS ARE ACCORDING TO PURCHASE ORDER NO. ${poNo} ${d}`.trim();
 }
 
