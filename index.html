@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.0</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.1</title>
 <style>
 /* ── Base ── */
 :root {
@@ -288,7 +288,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.0</span>
+    <span class="hdr-ver" id="header-sub">v1.1</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -420,7 +420,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.0</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.1</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -440,7 +440,6 @@ const S = {
   token: null,
   tokenExpiry: 0,
   userName: '',
-  // Loaded data
   booking: null,
   containers: [],
   saleContract: null,
@@ -448,12 +447,10 @@ const S = {
   siHeader: null,
   siDetail: null,
   carrierName: '',
-  // Derived
   totalNwMt: 0,
   totalBales: 0,
   containerCount: 0,
   amountUsd: 0,
-  // LC JSON
   lcJson: null,
   lcDateEn: '',
   poNo: '',
@@ -461,7 +458,6 @@ const S = {
   goodsType: 'OCC',
   docs46A: [],
   addCond47A: '',
-  // Invoice No
   invoiceNo: '',
 };
 
@@ -589,11 +585,12 @@ async function loadInvoice(){
   hideDataCards();
 
   try{
-    /* Step 1: Booking */
+    /* Step 1: Booking — crcf9_bl_etd / crcf9_bl_eta を追加取得 */
     const bkgRes=await dvGet(
       `cr49f_bookings?$filter=cr49f_invoice_no eq '${encodeURIComponent(iv)}'`+
       `&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,`+
-               `cr49f_etd,cr49f_eta,cr49f_bl_number,crcf9_bl_pol_text,`+
+               `cr49f_etd,cr49f_eta,crcf9_bl_etd,crcf9_bl_eta,`+
+               `cr49f_bl_number,crcf9_bl_pol_text,`+
                `_cr49f_sale_contract_id_value,_cr49f_carrier_id_value`+
       `&$expand=cr49f_carrier_id($select=crcf9_carrier)&$top=1`
     );
@@ -649,7 +646,6 @@ async function loadInvoice(){
       `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification&$top=1`
     );
     if(!siRes.value||siRes.value.length===0){
-      // Fallback: any sino with lc_no
       siRes=await dvGet(
         `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
         ` and cr49f_lc_no ne null`+
@@ -691,7 +687,6 @@ function renderDataCard(){
   const si=S.siHeader;
   const sd=S.siDetail;
 
-  // Bank detection
   const lcNo=si?.cr49f_lc_no||'';
   let bank='',bankTag='';
   if(lcNo.startsWith('3640ILU')){bank='MUFG';bankTag='<span class="tag tag-mufg">MUFG</span>';}
@@ -702,8 +697,8 @@ function renderDataCard(){
   const items=[
     ['Invoice No.',bk.cr49f_invoice_no,''],
     ['Vessel',bk.cr49f_main_ship_name||'—',''],
-    ['ETD',fmtDate(bk.cr49f_etd),''],
-    ['ETA',fmtDate(bk.cr49f_eta),''],
+    ['B/L ETD',fmtDate(getEtd(bk))+(bk.crcf9_bl_etd?'':' (予定)'),''],
+    ['B/L ETA',fmtDate(getEta(bk))+(bk.crcf9_bl_eta?'':' (予定)'),''],
     ['B/L No.',bk.cr49f_bl_number||'—','mono'],
     ['POL',bk.crcf9_bl_pol_text||'—',''],
     ['Carrier',S.carrierName,''],
@@ -768,23 +763,18 @@ async function openLcJson(){
     const lc=Array.isArray(data)?data[0]:data;
     S.lcJson=lc;
 
-    // Parse LC date
     S.lcDateEn=parseLcDate(lc.lcDate||'');
-    // Parse PO info from commodity45A
     const po=parsePO(lc.commodity45A||'');
     S.poNo=po.no;
     S.poDate=po.date;
-    // Goods type
     S.goodsType=detectGoodsType(lc.commodity45A||'',S.siDetail?.crcf9_productname||'');
     S.docs46A=lc.docs46A||[];
     S.addCond47A=lc.addCond47A||'';
 
-    // Show info
     showLcJsonInfo(lc);
     showStatus('lcLoadStatus','ok',`✅ LC JSON 読込完了: ${fh.name}`);
     document.getElementById('lcJsonStatus').style.display='none';
 
-    // Update badge
     updateBadge('b-verify','⚠');
   }catch(e){
     if(e.name!=='AbortError')
@@ -824,7 +814,6 @@ function buildAll(){
   renderBeneCert();
   renderFreeTime();
   if(S.lcJson) runLcVerify();
-  // Update badges
   updateBadge('b-qqco','✓');
   updateBadge('b-bene','✓');
   updateBadge('b-ft','✓');
@@ -922,8 +911,8 @@ function renderQQ(){
   const sc=S.saleContract;
   const contractNo=sc?.cr49f_sale_contract_no||'—';
   const invoiceNo=bk.cr49f_invoice_no;
-  const etdStr=fmtDateEn(bk.cr49f_etd);
-  const etaStr=fmtDateEn(bk.cr49f_eta);
+  const etdStr=fmtDateEn(getEtd(bk));
+  const etaStr=fmtDateEn(getEta(bk));
   const poLine=getPoLine();
   const items=getCommonItems();
 
@@ -950,10 +939,9 @@ function renderQQ(){
 function renderCO(){
   const bk=S.booking;
   const invoiceNo=bk.cr49f_invoice_no;
-  const etdStr=fmtDateEn(bk.cr49f_etd);
-  const etaStr=fmtDateEn(bk.cr49f_eta);
+  const etdStr=fmtDateEn(getEtd(bk));
+  const etaStr=fmtDateEn(getEta(bk));
   const poLine=getPoLine();
-  // CO items: CO only (Country of Origin first, no Description grouping change)
   const items=getCommonItems();
 
   document.getElementById('doc-co').innerHTML=`
@@ -975,11 +963,11 @@ function renderCO(){
 function renderBeneCert(){
   const bk=S.booking;
   const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(bk.cr49f_etd);
-  const etdStr=fmtDateEn(bk.cr49f_etd);
-  const etaStr=fmtDateEn(bk.cr49f_eta);
+  const issuanceDate=fmtDateEn(getEtd(bk));
+  const etdStr=fmtDateEn(getEtd(bk));
+  const etaStr=fmtDateEn(getEta(bk));
   const blNo=bk.cr49f_bl_number||'—';
-  const blDate=fmtDateEn(bk.cr49f_etd); // B/L date ≈ ETD (on-board date)
+  const blDate=fmtDateEn(getEtd(bk));
   const vessel=bk.cr49f_main_ship_name||'—';
   const lc=getLcNo();
   const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
@@ -1060,7 +1048,7 @@ function renderBeneCert(){
 function renderFreeTime(){
   const bk=S.booking;
   const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(bk.cr49f_etd);
+  const issuanceDate=fmtDateEn(getEtd(bk));
   const lc=getLcNo();
   const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
   const poLine=getPoLine();
@@ -1110,7 +1098,6 @@ function runLcVerify(){
   const lc=S.lcJson;
   const bk=S.booking;
 
-  // 1. LC No check
   const compassLc=S.siHeader?.cr49f_lc_no||'';
   const jsonLc=lc.lcNo||'';
   results.push({
@@ -1119,10 +1106,8 @@ function runLcVerify(){
     status:compassLc===jsonLc?'ok':'ng'
   });
 
-  // 2. Country of Origin
   results.push({badge:'OK',text:'Country of Origin: JAPAN (固定)',status:'ok'});
 
-  // 3. Q&Q Certificate required
   const has3=lc.docs46A.some(d=>d.toLowerCase().includes('quality'));
   results.push({
     badge:has3?'OK':'NG',
@@ -1130,7 +1115,6 @@ function runLcVerify(){
     status:has3?'ok':'ng'
   });
 
-  // 4. CO required
   const hasCO=lc.docs46A.some(d=>d.toLowerCase().includes('origin'));
   results.push({
     badge:hasCO?'OK':'NG',
@@ -1138,14 +1122,12 @@ function runLcVerify(){
     status:hasCO?'ok':'ng'
   });
 
-  // 5. Bene Cert required
   results.push({
     badge:lc.beneCertRequired?'OK':'WARN',
     text:'Beneficiary\'s Certificate: '+(lc.beneCertRequired?'必要（5 working days以内）':'LC未確認'),
     status:lc.beneCertRequired?'ok':'warn'
   });
 
-  // 6. Free Time required
   const hasFT=lc.docs46A.some(d=>d.toLowerCase().includes('demurrage')||d.toLowerCase().includes('free time'));
   results.push({
     badge:hasFT?'OK':'WARN',
@@ -1153,15 +1135,21 @@ function runLcVerify(){
     status:hasFT?'ok':'warn'
   });
 
-  // 7. B/L No. data check
   const blNo=bk.cr49f_bl_number||'';
   results.push({
     badge:blNo&&blNo.length>0?'OK':'WARN',
-    text:'B/L No.: '+(blNo||'(空欄) — 선積後にCOMPASSで確認要'),
+    text:'B/L No.: '+(blNo||'(空欄) — 先積後にCOMPASSで確認要'),
     status:blNo?'ok':'warn'
   });
 
-  // 8. Amount check
+  const etdSrc=bk.crcf9_bl_etd?'B/L確定値':'予定値(crcf9_bl_etd未登録)';
+  const etaSrc=bk.crcf9_bl_eta?'B/L確定値':'予定値(crcf9_bl_eta未登録)';
+  results.push({
+    badge:bk.crcf9_bl_etd?'OK':'WARN',
+    text:`ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
+    status:bk.crcf9_bl_etd?'ok':'warn'
+  });
+
   results.push({
     badge:'INFO',
     text:`Invoice Amount: USD ${S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2})} `+
@@ -1169,9 +1157,7 @@ function runLcVerify(){
     status:'info'
   });
 
-  // 9. Vietcombank extra check
   if(S.bankType==='Vietcombank'){
-    const hasDoc9=lc.docs46A.some(d=>d.toLowerCase().includes('fax')&&d.toLowerCase().includes('security'));
     results.push({
       badge:'WARN',
       text:'[Vietcombank専用] Doc.9: APPLICANT FAX/EMAIL (Security Deposit Number通知) — 別途提出要',
@@ -1184,23 +1170,20 @@ function runLcVerify(){
     });
   }
 
-  // 10. Discrepancy fee info
   results.push({
     badge:'INFO',
     text:`Discrepancy Fee: ${lc.discrepancyFee||'—'}`,
     status:'info'
   });
 
-  // Render
   const ngCount=results.filter(r=>r.status==='ng').length;
   const warnCount=results.filter(r=>r.status==='warn').length;
-  const summary=ngCount>0?`NG: ${ngCount}件`:warnCount>0?`WARN: ${warnCount}件`:'All OK';
   updateBadge('b-verify',ngCount>0?`NG:${ngCount}`:warnCount>0?`W:${warnCount}`:'OK');
 
   document.getElementById('verifyStatus').className=
     'status show '+(ngCount>0?'err':warnCount>0?'warn':'ok');
   document.getElementById('verifyStatus').textContent=
-    `検証完了: ${summary} (${results.length}項目チェック)`;
+    `検証完了: ${ngCount>0?`NG: ${ngCount}件`:warnCount>0?`WARN: ${warnCount}件`:'All OK'} (${results.length}項目チェック)`;
 
   document.getElementById('checkList').innerHTML=results.map(r=>`
     <div class="check-item ${r.status}">
@@ -1208,6 +1191,12 @@ function runLcVerify(){
       <span class="ck-text">${r.text}</span>
     </div>`).join('');
 }
+
+/* ══════════════
+   ETD / ETA ヘルパー (v1.1 — crcf9_bl_etd / crcf9_bl_eta 優先、なければ予定値へフォールバック)
+══════════════ */
+function getEtd(bk){ return bk.crcf9_bl_etd || bk.cr49f_etd || null; }
+function getEta(bk){ return bk.crcf9_bl_eta || bk.cr49f_eta || null; }
 
 /* ══════════════
    Utility Functions
@@ -1221,14 +1210,11 @@ function getLcNo(){
 }
 
 function getPod(){
-  // Use place_of_delivery_1 from S/I if available (not loaded in this version)
-  // Fallback: use LC JSON pod field
   if(S.lcJson?.pod) return S.lcJson.pod;
   return '—';
 }
 
 function getContractMt(){
-  // From LC JSON amountNumber / price
   if(S.lcJson&&S.lcJson.amountNumber&&S.saleDetail?.cr49f_price){
     return Math.round(S.lcJson.amountNumber/S.saleDetail.cr49f_price);
   }
@@ -1257,7 +1243,6 @@ function parsePO(commodity45A){
 function parseLcDate(ddmmyyyy){
   if(!ddmmyyyy) return '';
   const MON=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  // Handle DD/MM/YYYY or D/M/YYYY
   const m=ddmmyyyy.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(!m) return ddmmyyyy;
   const day=parseInt(m[1]);
@@ -1284,7 +1269,6 @@ function fmtDate(iso){
 
 function fmtDateEn(iso){
   if(!iso) return '—';
-  const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const d=new Date(iso);
   if(isNaN(d)) return iso;
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
