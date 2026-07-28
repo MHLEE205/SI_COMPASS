@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.1</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.2</title>
 <style>
 /* ── Base ── */
 :root {
@@ -254,6 +254,7 @@ input,select{font-family:inherit;}
 
 /* ── Print ── */
 @media print{
+  @page{size:A4;margin:15mm;}
   body{background:#fff!important;color:#000!important;}
   .hdr,.tabs,.auth-bar,.doc-actions,.card,.check-wrap,.status,.lc-json-row,
   .doc-section-title,.btn,.form-row,.no-print{display:none!important;}
@@ -288,7 +289,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.1</span>
+    <span class="hdr-ver" id="header-sub">v1.2</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -337,6 +338,13 @@ input,select{font-family:inherit;}
         <span id="bankTag" class="tag"></span>
       </div>
       <div class="data-grid" id="dataGrid"></div>
+    </div>
+
+    <!-- POD 選択 (v1.2: 複数PODの場合ラジオボタン) -->
+    <div class="card" id="podCard" style="display:none">
+      <div class="card-title">Port of Destination (POD) 選択</div>
+      <div id="podRadioWrap" style="padding:4px 0;"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 複数PODが設定されています。서류に使用するPODを選択してください。</div>
     </div>
 
     <!-- LC JSON load -->
@@ -420,7 +428,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.1</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.2</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -440,6 +448,7 @@ const S = {
   token: null,
   tokenExpiry: 0,
   userName: '',
+  // Loaded data
   booking: null,
   containers: [],
   saleContract: null,
@@ -447,10 +456,12 @@ const S = {
   siHeader: null,
   siDetail: null,
   carrierName: '',
+  // Derived
   totalNwMt: 0,
   totalBales: 0,
   containerCount: 0,
   amountUsd: 0,
+  // LC JSON
   lcJson: null,
   lcDateEn: '',
   poNo: '',
@@ -458,7 +469,13 @@ const S = {
   goodsType: 'OCC',
   docs46A: [],
   addCond47A: '',
+  // Invoice No
   invoiceNo: '',
+  // v1.2 additions
+  podList: [],       // crcf9_place_of_delivery_1/2/3 (non-null, ordered)
+  selectedPod: '',   // 담당자가 선택한 POD
+  allText: '',       // crcf9_all — 모든 서류 하단에 삽입
+  poVo: '',          // crcf9_po_vo — 서류상 CONTRACT NO.
 };
 
 /* ══════════════
@@ -638,21 +655,33 @@ async function loadInvoice(){
     const priceUsd=S.saleDetail?.cr49f_price||0;
     S.amountUsd=Math.round(S.totalNwMt*priceUsd*100)/100;
 
-    /* Step 5: S/I Header (LC No) — sino=1 first, then any */
+    /* Step 5: S/I 全件照会 (v1.2 — crcf9_all / crcf9_po_vo / place_of_delivery 追加) */
     showStatus('loadStatus','info','<span class="spin">⟳</span> S/I・LC番号取得中...');
-    let siRes=await dvGet(
+    const allSiRes=await dvGet(
       `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
-      ` and crcf9_sino eq 1`+
-      `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification&$top=1`
+      `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification,`+
+               `crcf9_sino,crcf9_all,crcf9_po_vo,`+
+               `crcf9_place_of_delivery_1,crcf9_place_of_delivery_2,crcf9_place_of_delivery_3`+
+      `&$orderby=crcf9_sino asc&$top=4`
     );
-    if(!siRes.value||siRes.value.length===0){
-      siRes=await dvGet(
-        `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
-        ` and cr49f_lc_no ne null`+
-        `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification&$top=1`
-      );
-    }
-    S.siHeader=siRes.value&&siRes.value.length>0?siRes.value[0]:null;
+    const allSiList=allSiRes.value||[];
+    // S/I Header: sino=1 優先、次にLC番号あり、なければ先頭
+    S.siHeader=allSiList.find(s=>s.crcf9_sino===1)
+             ||allSiList.find(s=>s.cr49f_lc_no)
+             ||(allSiList.length>0?allSiList[0]:null);
+    // crcf9_all: 値があるレコードの最初を使用
+    S.allText=allSiList.find(s=>s.crcf9_all)?.crcf9_all||'';
+    // crcf9_po_vo: Header優先、なければ他レコード
+    S.poVo=S.siHeader?.crcf9_po_vo
+          ||allSiList.find(s=>s.crcf9_po_vo)?.crcf9_po_vo||'';
+    // POD list: place_of_delivery_1/2/3 を順に収集（nullを除く）
+    const podArr=[
+      S.siHeader?.crcf9_place_of_delivery_1,
+      S.siHeader?.crcf9_place_of_delivery_2,
+      S.siHeader?.crcf9_place_of_delivery_3,
+    ].filter(Boolean);
+    S.podList=podArr;
+    S.selectedPod=podArr.length>0?podArr[0]:'';
 
     /* Step 6: S/I Detail (product name) */
     if(S.siHeader){
@@ -666,6 +695,7 @@ async function loadInvoice(){
     showStatus('loadStatus','ok',`✅ "${iv}" のデータを取得しました。`);
     renderDataCard();
     renderContainerTable();
+    renderPodSelector();
     document.getElementById('lcCard').style.display='';
     document.getElementById('goPanel').style.display='';
 
@@ -675,7 +705,7 @@ async function loadInvoice(){
 }
 
 function hideDataCards(){
-  ['dataCard','ctCard','lcCard','goPanel'].forEach(id=>{
+  ['dataCard','podCard','ctCard','lcCard','goPanel'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display='none';
   });
@@ -687,6 +717,7 @@ function renderDataCard(){
   const si=S.siHeader;
   const sd=S.siDetail;
 
+  // Bank detection
   const lcNo=si?.cr49f_lc_no||'';
   let bank='',bankTag='';
   if(lcNo.startsWith('3640ILU')){bank='MUFG';bankTag='<span class="tag tag-mufg">MUFG</span>';}
@@ -702,7 +733,7 @@ function renderDataCard(){
     ['B/L No.',bk.cr49f_bl_number||'—','mono'],
     ['POL',bk.crcf9_bl_pol_text||'—',''],
     ['Carrier',S.carrierName,''],
-    ['Contract No.',sc?.cr49f_sale_contract_no||'—',''],
+    ['Contract No.',S.poVo||sc?.cr49f_sale_contract_no||'—',''],
     ['LC No.',lcNo||'—','lc'],
     ['Product',sd?.crcf9_productname||'—',''],
     ['Price (USD/MT)',(S.saleDetail?.cr49f_price||0).toFixed(2),''],
@@ -742,6 +773,35 @@ function renderContainerTable(){
   document.getElementById('ctSummary').textContent=
     `${S.containerCount}本 / ${S.totalBales} BALES / ${S.totalNwMt.toFixed(2)} MT`;
   document.getElementById('ctCard').style.display='';
+}
+
+/* ══════════════════════
+   POD 選択 UI (v1.2)
+══════════════════════ */
+function renderPodSelector(){
+  const card=document.getElementById('podCard');
+  const wrap=document.getElementById('podRadioWrap');
+  if(S.podList.length===0){
+    card.style.display='none';
+    return;
+  }
+  if(S.podList.length===1){
+    // 1件: 自動選択、カード非表示
+    S.selectedPod=S.podList[0];
+    card.style.display='none';
+    return;
+  }
+  // 複数件: ラジオボタン表示
+  wrap.innerHTML=S.podList.map((pod,i)=>`
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;
+                  cursor:pointer;font-size:13px;color:var(--text);">
+      <input type="radio" name="podRadio" value="${pod}" ${i===0?'checked':''}
+        onchange="S.selectedPod=this.value"
+        style="accent-color:var(--accent);width:14px;height:14px;">
+      ${pod}
+    </label>`).join('');
+  S.selectedPod=S.podList[0];
+  card.style.display='';
 }
 
 /* ══════════════
@@ -909,7 +969,7 @@ function getCommonItems(){
 function renderQQ(){
   const bk=S.booking;
   const sc=S.saleContract;
-  const contractNo=sc?.cr49f_sale_contract_no||'—';
+  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
   const invoiceNo=bk.cr49f_invoice_no;
   const etdStr=fmtDateEn(getEtd(bk));
   const etaStr=fmtDateEn(getEta(bk));
@@ -930,6 +990,7 @@ function renderQQ(){
     <br>
     <div style="font-weight:700;font-size:12px;">WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED</div>
     <div class="cert-bottom">${poLine}</div>
+    ${certBottom()}
     ${certSig()}`;
 }
 
@@ -954,6 +1015,7 @@ function renderCO(){
     <br>
     <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
     <div class="cert-bottom">${poLine}</div>
+    ${certBottom()}
     ${certSig()}`;
 }
 
@@ -1039,6 +1101,7 @@ function renderBeneCert(){
     <br>
     <div style="font-size:12px;">Thanks,</div>
     <div style="font-size:12px;">Best Regards,</div>
+    ${certBottom()}
     ${certSig()}`;
 }
 
@@ -1081,6 +1144,7 @@ function renderFreeTime(){
     <br>
     <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
     <div class="cert-bottom">${poLine}</div>
+    ${certBottom()}
     ${certSig()}`;
 }
 
@@ -1098,6 +1162,7 @@ function runLcVerify(){
   const lc=S.lcJson;
   const bk=S.booking;
 
+  // 1. LC No check
   const compassLc=S.siHeader?.cr49f_lc_no||'';
   const jsonLc=lc.lcNo||'';
   results.push({
@@ -1106,8 +1171,10 @@ function runLcVerify(){
     status:compassLc===jsonLc?'ok':'ng'
   });
 
+  // 2. Country of Origin
   results.push({badge:'OK',text:'Country of Origin: JAPAN (固定)',status:'ok'});
 
+  // 3. Q&Q Certificate required
   const has3=lc.docs46A.some(d=>d.toLowerCase().includes('quality'));
   results.push({
     badge:has3?'OK':'NG',
@@ -1115,6 +1182,7 @@ function runLcVerify(){
     status:has3?'ok':'ng'
   });
 
+  // 4. CO required
   const hasCO=lc.docs46A.some(d=>d.toLowerCase().includes('origin'));
   results.push({
     badge:hasCO?'OK':'NG',
@@ -1122,12 +1190,14 @@ function runLcVerify(){
     status:hasCO?'ok':'ng'
   });
 
+  // 5. Bene Cert required
   results.push({
     badge:lc.beneCertRequired?'OK':'WARN',
     text:'Beneficiary\'s Certificate: '+(lc.beneCertRequired?'必要（5 working days以内）':'LC未確認'),
     status:lc.beneCertRequired?'ok':'warn'
   });
 
+  // 6. Free Time required
   const hasFT=lc.docs46A.some(d=>d.toLowerCase().includes('demurrage')||d.toLowerCase().includes('free time'));
   results.push({
     badge:hasFT?'OK':'WARN',
@@ -1135,13 +1205,15 @@ function runLcVerify(){
     status:hasFT?'ok':'warn'
   });
 
+  // 7. B/L No. data check
   const blNo=bk.cr49f_bl_number||'';
   results.push({
     badge:blNo&&blNo.length>0?'OK':'WARN',
-    text:'B/L No.: '+(blNo||'(空欄) — 先積後にCOMPASSで確認要'),
+    text:'B/L No.: '+(blNo||'(空欄) — 선積後にCOMPASSで確認要'),
     status:blNo?'ok':'warn'
   });
 
+  // 8. ETD/ETA ソース確認
   const etdSrc=bk.crcf9_bl_etd?'B/L確定値':'予定値(crcf9_bl_etd未登録)';
   const etaSrc=bk.crcf9_bl_eta?'B/L確定値':'予定値(crcf9_bl_eta未登録)';
   results.push({
@@ -1150,6 +1222,7 @@ function runLcVerify(){
     status:bk.crcf9_bl_etd?'ok':'warn'
   });
 
+  // 9. Amount check
   results.push({
     badge:'INFO',
     text:`Invoice Amount: USD ${S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2})} `+
@@ -1157,6 +1230,7 @@ function runLcVerify(){
     status:'info'
   });
 
+  // 10. Vietcombank extra check
   if(S.bankType==='Vietcombank'){
     results.push({
       badge:'WARN',
@@ -1170,12 +1244,14 @@ function runLcVerify(){
     });
   }
 
+  // 11. Discrepancy fee info
   results.push({
     badge:'INFO',
     text:`Discrepancy Fee: ${lc.discrepancyFee||'—'}`,
     status:'info'
   });
 
+  // Render
   const ngCount=results.filter(r=>r.status==='ng').length;
   const warnCount=results.filter(r=>r.status==='warn').length;
   updateBadge('b-verify',ngCount>0?`NG:${ngCount}`:warnCount>0?`W:${warnCount}`:'OK');
@@ -1210,8 +1286,18 @@ function getLcNo(){
 }
 
 function getPod(){
+  // v1.2: crcf9_place_of_delivery_1/2/3 優先（라디오버튼選択値）
+  if(S.selectedPod) return S.selectedPod;
+  if(S.podList.length>0) return S.podList[0];
+  // フォールバック: LC JSON
   if(S.lcJson?.pod) return S.lcJson.pod;
   return '—';
+}
+
+function certBottom(){
+  // v1.2: crcf9_all — 모든 서류 하단에 삽입 (값 없으면 빈 문자열)
+  if(!S.allText) return '';
+  return `<div class="cert-bottom" style="margin-top:6px;">${S.allText}</div>`;
 }
 
 function getContractMt(){
@@ -1254,9 +1340,11 @@ function parseLcDate(ddmmyyyy){
 
 function detectGoodsType(commodity45A,productname){
   const combined=(commodity45A+' '+productname).toUpperCase();
-  if(combined.includes('OCC')) return 'OCC';
+  // v1.2: SOP3を先にチェック（SOP3 は OCC よりも SOP に属する）
+  if(combined.includes('SOP3')) return 'SOP';
   if(combined.includes('SOP')) return 'SOP';
   if(combined.includes('SHREDDED')) return 'SOP';
+  if(combined.includes('OCC')) return 'OCC';
   return 'OCC';
 }
 
