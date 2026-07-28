@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.4</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.5</title>
 <style>
 /* ── Base ── */
 :root {
@@ -291,7 +291,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.4</span>
+    <span class="hdr-ver" id="header-sub">v1.5</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -431,7 +431,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.4</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.5</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -444,7 +444,7 @@ const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-// v1.4: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
+// v1.5: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
 const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
 const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
 const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
@@ -510,7 +510,7 @@ async function startLogin(){
   const state=randomStr(16);
   sessionStorage.setItem('pkce_v',verifier);
   sessionStorage.setItem('pkce_s',state);
-  sessionStorage.setItem('pkce_type','dv'); // v1.4: フロー識別
+  sessionStorage.setItem('pkce_type','dv'); // v1.5: フロー識別
   const p=new URLSearchParams({
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_DV,
@@ -520,8 +520,8 @@ async function startLogin(){
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.4: DV認証完了後にGraph tokenをprompt=noneでサイレント取得
-async function startGraphSilent(){
+// v1.5: DV認証完了後にGraph tokenを取得 (初回のみ同意画面、以降はスキップ)
+async function startGraphAuth(){
   const verifier=randomStr(64);
   const challenge=b64url(await sha256(verifier));
   const state=randomStr(16);
@@ -531,13 +531,13 @@ async function startGraphSilent(){
   const p=new URLSearchParams({
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_GRAPH,
-    state,code_challenge:challenge,code_challenge_method:'S256',
-    prompt:'none' // 既存セッションを使いUI表示なし
+    state,code_challenge:challenge,code_challenge_method:'S256'
+    // promptなし → 同意済みならスキップ、未同意なら同意画面1回のみ
   });
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.4: Graph redirectから戻った後にDVセッションを復元
+// v1.5: Graph redirectから戻った後にDVセッションを復元
 function restoreDvSession(){
   const token=sessionStorage.getItem('dv_token');
   const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
@@ -555,7 +555,7 @@ async function handleCallback(){
   const code=p.get('code');
   const type=sessionStorage.getItem('pkce_type')||'dv';
 
-  // prompt=none失敗時 (interaction_required等) — Graph静かに諦める
+  // Graph認証エラー時 — DV接続は維持して手動フォールバック
   if(!code){
     const err=p.get('error');
     if(err && type==='graph'){
@@ -607,8 +607,8 @@ async function handleCallback(){
     sessionStorage.setItem('dv_token',S.token);
     sessionStorage.setItem('dv_expiry',String(S.tokenExpiry));
     sessionStorage.setItem('dv_user',S.userName);
-    // Graph tokenをサイレント取得 (redirect → Graph callback → restoreDvSession)
-    await startGraphSilent();
+    // Graph token取得 (redirect → Graph callback → restoreDvSession)
+    await startGraphAuth();
     // ↑ redirectするため以降のコードは実行されない
   }catch(e){
     showStatus('loadStatus','err','認証エラー: '+e.message);
