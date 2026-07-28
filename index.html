@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.2</title>
+<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.3</title>
 <style>
 /* ── Base ── */
 :root {
@@ -257,11 +257,13 @@ input,select{font-family:inherit;}
   @page{size:A4;margin:15mm;}
   body{background:#fff!important;color:#000!important;}
   .hdr,.tabs,.auth-bar,.doc-actions,.card,.check-wrap,.status,.lc-json-row,
-  .doc-section-title,.btn,.form-row,.no-print{display:none!important;}
+  .doc-section-title,.btn,.form-row,.no-print,.powered{display:none!important;}
   .panel{display:block!important;}
-  .cert-wrap{border:none;padding:0;margin-bottom:0;}
-  .cert-doc{page-break-after:always;}
-  .cert-doc:last-child{page-break-after:avoid;}
+  /* v1.3: cert-wrap単位でページ強制改ページ */
+  .cert-wrap{border:none;padding:0;margin-bottom:0;
+    break-after:page;page-break-after:always;}
+  .cert-wrap:last-of-type{break-after:avoid;page-break-after:avoid;}
+  .cert-doc{display:block;}
 }
 
 /* ── Misc ── */
@@ -289,7 +291,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.2</span>
+    <span class="hdr-ver" id="header-sub">v1.3</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -347,13 +349,14 @@ input,select{font-family:inherit;}
       <div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 複数PODが設定されています。서류に使用するPODを選択してください。</div>
     </div>
 
-    <!-- LC JSON load -->
+    <!-- LC JSON load (v1.3: SharePoint自動取得) -->
     <div class="card" id="lcCard" style="display:none">
       <div class="card-title">LC JSON — 検証 &amp; PO情報</div>
-      <div class="form-row">
-        <button class="btn btn-secondary" onclick="openLcJson()">📂 LC JSON 読込 (File System Access)</button>
-        <div style="font-size:12px;color:var(--muted);align-self:center;">
-          D-01-LC_FD_CHECKER フォルダの LRS-XXXX_{LC番号}.json を選択
+      <div id="lcAutoStatus" class="status info show"><span class="spin">⟳</span> SharePoint から LC JSON 自動取得中...</div>
+      <div class="form-row" style="margin-top:4px;">
+        <button class="btn btn-secondary btn-sm" onclick="openLcJson()">📂 手動読込 (fallback)</button>
+        <div style="font-size:11px;color:var(--muted);align-self:center;">
+          自動取得失敗時のみ — LRS-XXXX_{LC番号}.json
         </div>
       </div>
       <div id="lcJsonStatus" class="status info show">⚠️ LC JSON 未読込。LC 検証はスキップされます（서류生成は可能）。</div>
@@ -428,7 +431,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.2</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.3</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -441,7 +444,11 @@ const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
+// v1.3: offline_access追加 → refresh_tokenでGraph連携
+const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation offline_access openid profile';
+const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
+const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
+const SP_DRIVE_ID  = 'b!ZK58_9YllU-vETQD3Xz0TbOInXbVCXJHnQ2280KJBArFLeM_18EgRbSeoO-TW__U';
 
 /* ── State ── */
 const S = {
@@ -476,6 +483,9 @@ const S = {
   selectedPod: '',   // 담당자가 선택한 POD
   allText: '',       // crcf9_all — 모든 서류 하단에 삽입
   poVo: '',          // crcf9_po_vo — 서류상 CONTRACT NO.
+  // v1.3 additions
+  graphToken: null,       // Microsoft Graph API token (SharePoint)
+  graphTokenExpiry: 0,
 };
 
 /* ══════════════
@@ -535,6 +545,24 @@ async function handleCallback(){
         S.userName=pl.name||pl.preferred_username||'';
       }catch(e){}
     }
+    // v1.3: refresh_tokenでGraph APIトークンをサイレント取得（リダイレクト不要）
+    if(data.refresh_token){
+      try{
+        const gRes=await fetch(
+          `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
+          {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+           body:new URLSearchParams({
+             client_id:CLIENT_ID,grant_type:'refresh_token',
+             refresh_token:data.refresh_token,scope:SCOPE_GRAPH
+           })}
+        );
+        const gData=await gRes.json();
+        if(gData.access_token){
+          S.graphToken=gData.access_token;
+          S.graphTokenExpiry=Date.now()+(gData.expires_in-60)*1000;
+        }
+      }catch(e){ /* Graph token失敗は無視 — 手動フォールバック */ }
+    }
     setConnected(true);
   }catch(e){
     showStatus('loadStatus','err','認証エラー: '+e.message);
@@ -564,6 +592,7 @@ function setConnected(ok){
 
 function doLogout(){
   S.token=null;S.tokenExpiry=0;S.userName='';
+  S.graphToken=null;S.graphTokenExpiry=0;
   sessionStorage.clear();
   setConnected(false);
 }
@@ -571,6 +600,20 @@ function doLogout(){
 /* ══════════════
    Dataverse API
 ══════════════ */
+async function graphGet(path){
+  // v1.3: Microsoft Graph API (SharePoint)
+  if(!S.graphToken) throw new Error('Graph未認証');
+  if(Date.now()>S.graphTokenExpiry) throw new Error('Graphセッション期限切れ');
+  const res=await fetch(`${GRAPH_BASE}${path}`,{
+    headers:{'Authorization':`Bearer ${S.graphToken}`,'Accept':'application/json'}
+  });
+  if(!res.ok){
+    const e=await res.json().catch(()=>({}));
+    throw new Error(`Graph ${res.status}: ${e?.error?.message||res.statusText}`);
+  }
+  return res.json();
+}
+
 async function dvGet(path){
   if(!S.token) throw new Error('未認証。ログインしてください。');
   if(Date.now()>S.tokenExpiry) throw new Error('セッション期限切れ。再ログインしてください。');
@@ -698,6 +741,7 @@ async function loadInvoice(){
     renderPodSelector();
     document.getElementById('lcCard').style.display='';
     document.getElementById('goPanel').style.display='';
+    autoLoadLcJson(); // v1.3: SharePointからLC JSON自動取得
 
   }catch(e){
     showStatus('loadStatus','err','エラー: '+e.message);
@@ -802,6 +846,58 @@ function renderPodSelector(){
     </label>`).join('');
   S.selectedPod=S.podList[0];
   card.style.display='';
+}
+
+/* ══════════════════════════════
+   LC JSON 自動取得 (v1.3 — SharePoint Graph API)
+══════════════════════════════ */
+async function autoLoadLcJson(){
+  const lcNo=S.siHeader?.cr49f_lc_no||'';
+  const contractNo=S.saleContract?.cr49f_sale_contract_no||'';
+  if(!lcNo||!contractNo){
+    showStatus('lcAutoStatus','warn','⚠ LC番号または契約番号が未取得。手動読込を使用してください。');
+    return;
+  }
+  if(!S.graphToken||Date.now()>S.graphTokenExpiry){
+    showStatus('lcAutoStatus','warn','⚠ SharePoint未接続（Graph tokenなし）。手動読込を使用してください。');
+    return;
+  }
+  const fileName=`${contractNo}_${lcNo}.json`;
+  showStatus('lcAutoStatus','info',`<span class="spin">⟳</span> ${fileName} を取得中...`);
+  // 検索パス: D-01-LC_FD_CHECKER 優先、▲ LC_LEENAI_JSON フォールバック
+  const spPaths=[
+    `古紙/-. AI 活用/D-01-LC_FD_CHECKER/${fileName}`,
+    `古紙/-. 古紙書類/▲ LC_LEENAI_JSON/${fileName}`
+  ];
+  let jsonData=null;
+  for(const sp of spPaths){
+    try{
+      const encoded=sp.split('/').map(encodeURIComponent).join('/');
+      jsonData=await graphGet(`drives/${SP_DRIVE_ID}/root:/${encoded}:/content`);
+      break;
+    }catch(e){ /* 次のパスを試す */ }
+  }
+  if(!jsonData){
+    showStatus('lcAutoStatus','warn',`⚠ ${fileName} が見つかりません。手動読込を使用してください。`);
+    return;
+  }
+  try{
+    const lc=Array.isArray(jsonData)?jsonData[0]:jsonData;
+    S.lcJson=lc;
+    S.lcDateEn=parseLcDate(lc.lcDate||'');
+    const po=parsePO(lc.commodity45A||'');
+    S.poNo=po.no;
+    S.poDate=po.date;
+    S.goodsType=detectGoodsType(lc.commodity45A||'',S.siDetail?.crcf9_productname||'');
+    S.docs46A=lc.docs46A||[];
+    S.addCond47A=lc.addCond47A||'';
+    showLcJsonInfo(lc);
+    showStatus('lcAutoStatus','ok',`✅ LC JSON 自動取得完了: ${fileName}`);
+    document.getElementById('lcJsonStatus').style.display='none';
+    updateBadge('b-verify','⚠');
+  }catch(e){
+    showStatus('lcAutoStatus','err','LC JSON 解析エラー: '+e.message);
+  }
 }
 
 /* ══════════════
@@ -1070,9 +1166,6 @@ function renderBeneCert(){
     <p style="font-size:12px;margin:4px 0 10px;">COPY BILL OF LADING, COPY INVOICE, COPY PACKING LIST.</p>
     <div class="bene-table-wrap">
       <table class="bene-tbl">
-        <tr class="bene-tbl-header">
-          <td colspan="7">SAIGON &nbsp;|&nbsp; ${lrsNo} &nbsp;|&nbsp; ${goodsType} &nbsp;|&nbsp; ${contractMt}MT</td>
-        </tr>
         <tr>
           <th>ETD</th><th>ETA</th><th>Invoice NO</th><th>Carrier</th>
           <th>NAME OF VESSEL</th><th>B/L NUMBER AND DATE</th><th>${S.goodsType==='OCC'?'OCC':'SOP'}MT</th>
@@ -1126,8 +1219,7 @@ function renderFreeTime(){
     ${certExporterImporter()}
     <div class="ft-declare">
       WE, LEENEAR CORPORATION HEREBY DECLARE THAT:<br>
-      10 DAYS FREE TIME DEMURRAGE AND 4 DAYS FREE TIME DETENTION OR 14 DAYS
-      FREE TIME COMBINED FOR DEMURRAGE AND DETENTION AT DESTINATION.
+      ${getFreeTimeDeclare()}
     </div>
     <div class="cert-items">
       <div class="cert-item">
@@ -1298,6 +1390,22 @@ function certBottom(){
   // v1.2: crcf9_all — 모든 서류 하단에 삽입 (값 없으면 빈 문자열)
   if(!S.allText) return '';
   return `<div class="cert-bottom" style="margin-top:6px;">${S.allText}</div>`;
+}
+
+function getFreeTimeDeclare(){
+  // v1.3: LC JSONのdocs46AからDEMURRAGE/FREE TIME項目を自動抽出
+  if(S.lcJson?.docs46A){
+    const ftDoc=S.lcJson.docs46A.find(d=>
+      d.toUpperCase().includes('DEMURRAGE')||d.toUpperCase().includes('FREE TIME DETENTION')
+    );
+    if(ftDoc){
+      // "CERTIFYING THAT " 以降を取得、"THIS CERTIFICATE IS NOT REQUIRED" 以前で切断
+      const m=ftDoc.match(/CERTIFYING THAT\s+(.+?)(?:\.\s*THIS CERTIFICATE IS NOT REQUIRED|$)/is);
+      if(m) return m[1].trim().toUpperCase()+'.';
+    }
+  }
+  // フォールバック: ハードコード
+  return '10 DAYS FREE TIME DEMURRAGE AND 4 DAYS FREE TIME DETENTION OR 14 DAYS FREE TIME COMBINED FOR DEMURRAGE AND DETENTION AT DESTINATION.';
 }
 
 function getContractMt(){
