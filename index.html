@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL [SAIGON] v1.06</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.07</title>
 <style>
 /* ── Base ── */
 :root {
@@ -174,6 +174,13 @@ input,select{font-family:inherit;}
   color:var(--text);font-size:11px;
 }
 
+/* ── N/A panel ── */
+.na-panel{
+  padding:40px;text-align:center;color:var(--muted);font-size:14px;
+  background:var(--surface2);border-radius:8px;border:1px solid var(--border);
+  margin-bottom:16px;
+}
+
 /* ══════════════════════════
    CERTIFICATE DOCUMENT STYLES
    ══════════════════════════ */
@@ -264,9 +271,10 @@ input,select{font-family:inherit;}
   .panel.active{display:block!important;}
   .cert-wrap{border:none;padding:0;margin-bottom:0;
     break-after:page;page-break-after:always;break-inside:avoid;}
-  /* :last-child で末尾cert-wrapのみbreak-avoid (last-of-typeは各パネルに誤適用されるため変更) */
+  /* :last-child で末尾cert-wrapのみbreak-avoid */
   .cert-wrap:last-child{break-after:avoid;page-break-after:avoid;}
   .cert-doc{display:block;}
+  .na-panel{display:none!important;}
 }
 
 /* ── Misc ── */
@@ -277,6 +285,7 @@ input,select{font-family:inherit;}
 }
 .tag-mufg{background:rgba(88,166,255,.15);color:var(--accent);}
 .tag-vcb{background:rgba(210,153,34,.15);color:var(--warn);}
+.tag-aspex{background:rgba(163,113,247,.15);color:var(--purple);}
 .tag-ok{background:rgba(63,185,80,.15);color:var(--accent2);}
 .tag-ng{background:rgba(248,81,73,.15);color:var(--danger);}
 .powered{
@@ -291,10 +300,10 @@ input,select{font-family:inherit;}
 <div class="hdr">
   <div class="hdr-left">
     <span class="hdr-sys">SYS-D-04</span>
-    <span class="hdr-title">✦ CERTIFICATE TOOL <span style="color:var(--warn)">[SAIGON]</span></span>
+    <span class="hdr-title">✦ CERTIFICATE TOOL <span id="importerBadge" style="color:var(--warn)">[—]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.06</span>
+    <span class="hdr-ver" id="header-sub">v1.07</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -328,7 +337,7 @@ input,select{font-family:inherit;}
       <div class="form-row">
         <div class="form-group">
           <label>Invoice No.</label>
-          <input class="input-field" id="ivInput" type="text" placeholder="例: NSG2606-04"
+          <input class="input-field" id="ivInput" type="text" placeholder="例: NSG2606-04 / NA2607-01"
             onkeydown="if(event.key==='Enter')loadInvoice()">
         </div>
         <button class="btn btn-primary" id="loadBtn" onclick="loadInvoice()">🔍 Load</button>
@@ -399,10 +408,12 @@ input,select{font-family:inherit;}
       <button class="btn btn-success" onclick="printDocs('qqco')">🖨 印刷 (Q&amp;Q + CO × 各3部)</button>
       <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部ずつ用意して署名・捺印</span>
     </div>
-    <div class="doc-section-title">Certificate of Quality and Quantity</div>
-    <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
-    <div class="doc-section-title">Certificate of Origin</div>
-    <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>
+    <div id="qqco-content">
+      <div class="doc-section-title">Certificate of Quality and Quantity</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
+      <div class="doc-section-title">Certificate of Origin</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>
+    </div>
   </div>
 
   <!-- ══ TAB 3: Bene Cert ══ -->
@@ -419,8 +430,10 @@ input,select{font-family:inherit;}
     <div class="doc-actions no-print">
       <button class="btn btn-success" onclick="printDocs('ft')">🖨 印刷 (1部)</button>
     </div>
-    <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
-    <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>
+    <div id="ft-content">
+      <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>
+    </div>
   </div>
 
   <!-- ══ TAB 5: LC Verify ══ -->
@@ -434,7 +447,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 [SAIGON] v1.06</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.07</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -447,7 +460,6 @@ const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-// v1.06: Dataverseスコープのみ (Graph連携はprompt=none別フローで取得)
 const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
 const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
 const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
@@ -482,13 +494,15 @@ const S = {
   // Invoice No
   invoiceNo: '',
   // v1.2 additions
-  podList: [],       // crcf9_place_of_delivery_1/2/3 (non-null, ordered)
-  selectedPod: '',   // 담당자가 선택한 POD
-  allText: '',       // crcf9_all — 모든 서류 하단에 삽입
-  poVo: '',          // crcf9_po_vo — 서류상 CONTRACT NO.
+  podList: [],
+  selectedPod: '',
+  allText: '',
+  poVo: '',
   // v1.3 additions
-  graphToken: null,       // Microsoft Graph API token (SharePoint)
+  graphToken: null,
   graphTokenExpiry: 0,
+  // v1.07: multi-importer
+  importer: 'SAIGON',   // 'SAIGON' | 'ASPEX'
 };
 
 /* ══════════════
@@ -513,7 +527,7 @@ async function startLogin(){
   const state=randomStr(16);
   sessionStorage.setItem('pkce_v',verifier);
   sessionStorage.setItem('pkce_s',state);
-  sessionStorage.setItem('pkce_type','dv'); // v1.06: フロー識別
+  sessionStorage.setItem('pkce_type','dv');
   const p=new URLSearchParams({
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_DV,
@@ -523,7 +537,6 @@ async function startLogin(){
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.06: DV認証完了後にGraph tokenを取得 (初回のみ同意画面、以降はスキップ)
 async function startGraphAuth(){
   const verifier=randomStr(64);
   const challenge=b64url(await sha256(verifier));
@@ -535,12 +548,10 @@ async function startGraphAuth(){
     client_id:CLIENT_ID,response_type:'code',
     redirect_uri:REDIRECT_URI,scope:SCOPE_GRAPH,
     state,code_challenge:challenge,code_challenge_method:'S256'
-    // promptなし → 同意済みならスキップ、未同意なら同意画面1回のみ
   });
   location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-// v1.06: Graph redirectから戻った後にDVセッションを復元
 function restoreDvSession(){
   const token=sessionStorage.getItem('dv_token');
   const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
@@ -549,7 +560,7 @@ function restoreDvSession(){
     S.token=token; S.tokenExpiry=expiry; S.userName=user;
     setConnected(true);
   }else{
-    setConnected(false); // DV期限切れ→再ログイン
+    setConnected(false);
   }
 }
 
@@ -558,7 +569,6 @@ async function handleCallback(){
   const code=p.get('code');
   const type=sessionStorage.getItem('pkce_type')||'dv';
 
-  // Graph認証エラー時 — DV接続は維持して手動フォールバック
   if(!code){
     const err=p.get('error');
     if(err && type==='graph'){
@@ -585,7 +595,6 @@ async function handleCallback(){
     );
     const data=await res.json();
 
-    // ── Graph callbackフロー ──
     if(type==='graph'){
       sessionStorage.removeItem('pkce_type');
       if(data.access_token){
@@ -596,7 +605,6 @@ async function handleCallback(){
       return;
     }
 
-    // ── Dataverse callbackフロー ──
     if(!data.access_token) throw new Error(data.error_description||'Token取得失敗');
     S.token=data.access_token;
     S.tokenExpiry=Date.now()+(data.expires_in-60)*1000;
@@ -606,13 +614,10 @@ async function handleCallback(){
         S.userName=pl.name||pl.preferred_username||'';
       }catch(e){}
     }
-    // DV情報をsessionStorageに退避 (Graph redirect後に復元)
     sessionStorage.setItem('dv_token',S.token);
     sessionStorage.setItem('dv_expiry',String(S.tokenExpiry));
     sessionStorage.setItem('dv_user',S.userName);
-    // Graph token取得 (redirect → Graph callback → restoreDvSession)
     await startGraphAuth();
-    // ↑ redirectするため以降のコードは実行されない
   }catch(e){
     showStatus('loadStatus','err','認証エラー: '+e.message);
   }
@@ -650,7 +655,6 @@ function doLogout(){
    Dataverse API
 ══════════════ */
 async function graphGet(path){
-  // v1.3: Microsoft Graph API (SharePoint)
   if(!S.graphToken) throw new Error('Graph未認証');
   if(Date.now()>S.graphTokenExpiry) throw new Error('Graphセッション期限切れ');
   const res=await fetch(`${GRAPH_BASE}${path}`,{
@@ -682,6 +686,16 @@ async function dvGet(path){
 }
 
 /* ══════════════
+   Importer Detection (v1.07)
+══════════════ */
+function detectImporter(ivNo){
+  // NA prefix = ASPEX (例: NA2607-01)
+  // NSG prefix = SAIGON (例: NSG2606-04)
+  if(ivNo.toUpperCase().startsWith('NA')) return 'ASPEX';
+  return 'SAIGON';
+}
+
+/* ══════════════
    Data Loading
 ══════════════ */
 async function loadInvoice(){
@@ -694,7 +708,7 @@ async function loadInvoice(){
   hideDataCards();
 
   try{
-    /* Step 1: Booking — crcf9_bl_etd / crcf9_bl_eta を追加取得 */
+    /* Step 1: Booking */
     const bkgRes=await dvGet(
       `cr49f_bookings?$filter=cr49f_invoice_no eq '${encodeURIComponent(iv)}'`+
       `&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,`+
@@ -738,7 +752,7 @@ async function loadInvoice(){
       `?$select=cr49f_sale_contract_no,cr49f_terms_conditions,cr49f_pay_cls,cr49f_pay_days`
     );
 
-    /* Step 4: Sale Detail (unit price) */
+    /* Step 4: Sale Detail */
     const sdRes=await dvGet(
       `cr49f_sale_details?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
       `&$select=cr49f_price&$top=1`
@@ -747,7 +761,7 @@ async function loadInvoice(){
     const priceUsd=S.saleDetail?.cr49f_price||0;
     S.amountUsd=Math.round(S.totalNwMt*priceUsd*100)/100;
 
-    /* Step 5: S/I 全件照会 (v1.2 — crcf9_all / crcf9_po_vo / place_of_delivery 追加) */
+    /* Step 5: S/I 全件照会 */
     showStatus('loadStatus','info','<span class="spin">⟳</span> S/I・LC番号取得中...');
     const allSiRes=await dvGet(
       `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
@@ -757,16 +771,12 @@ async function loadInvoice(){
       `&$orderby=crcf9_sino asc&$top=4`
     );
     const allSiList=allSiRes.value||[];
-    // S/I Header: sino=1 優先、次にLC番号あり、なければ先頭
     S.siHeader=allSiList.find(s=>s.crcf9_sino===1)
              ||allSiList.find(s=>s.cr49f_lc_no)
              ||(allSiList.length>0?allSiList[0]:null);
-    // crcf9_all: 値があるレコードの最初を使用
     S.allText=allSiList.find(s=>s.crcf9_all)?.crcf9_all||'';
-    // crcf9_po_vo: Header優先、なければ他レコード
     S.poVo=S.siHeader?.crcf9_po_vo
           ||allSiList.find(s=>s.crcf9_po_vo)?.crcf9_po_vo||'';
-    // POD list: place_of_delivery_1/2/3 を順に収集（nullを除く）
     const podArr=[
       S.siHeader?.crcf9_place_of_delivery_1,
       S.siHeader?.crcf9_place_of_delivery_2,
@@ -775,7 +785,7 @@ async function loadInvoice(){
     S.podList=podArr;
     S.selectedPod=podArr.length>0?podArr[0]:'';
 
-    /* Step 6: S/I Detail (product name) */
+    /* Step 6: S/I Detail */
     if(S.siHeader){
       const detRes=await dvGet(
         `crcf9_s_i_details?$filter=_crcf9_s_i_id_value eq ${S.siHeader.cr49f_s_iid}`+
@@ -790,7 +800,7 @@ async function loadInvoice(){
     renderPodSelector();
     document.getElementById('lcCard').style.display='';
     document.getElementById('goPanel').style.display='';
-    autoLoadLcJson(); // v1.3: SharePointからLC JSON自動取得
+    autoLoadLcJson();
 
   }catch(e){
     showStatus('loadStatus','err','エラー: '+e.message);
@@ -810,11 +820,12 @@ function renderDataCard(){
   const si=S.siHeader;
   const sd=S.siDetail;
 
-  // Bank detection
   const lcNo=si?.cr49f_lc_no||'';
   let bank='',bankTag='';
   if(lcNo.startsWith('3640ILU')){bank='MUFG';bankTag='<span class="tag tag-mufg">MUFG</span>';}
   else if(lcNo.startsWith('ILC')){bank='Vietcombank';bankTag='<span class="tag tag-vcb">Vietcombank</span>';}
+  // v1.07: ASPEX tag (WOORI bank prefix)
+  else if(lcNo.startsWith('ILC916')){bank='WOORI';bankTag='<span class="tag tag-aspex">WOORI</span>';}
   document.getElementById('bankTag').innerHTML=bankTag;
   S.bankType=bank;
 
@@ -874,17 +885,8 @@ function renderContainerTable(){
 function renderPodSelector(){
   const card=document.getElementById('podCard');
   const wrap=document.getElementById('podRadioWrap');
-  if(S.podList.length===0){
-    card.style.display='none';
-    return;
-  }
-  if(S.podList.length===1){
-    // 1件: 自動選択、カード非表示
-    S.selectedPod=S.podList[0];
-    card.style.display='none';
-    return;
-  }
-  // 複数件: ラジオボタン表示
+  if(S.podList.length===0){card.style.display='none';return;}
+  if(S.podList.length===1){S.selectedPod=S.podList[0];card.style.display='none';return;}
   wrap.innerHTML=S.podList.map((pod,i)=>`
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;
                   cursor:pointer;font-size:13px;color:var(--text);">
@@ -898,7 +900,7 @@ function renderPodSelector(){
 }
 
 /* ══════════════════════════════
-   LC JSON 自動取得 (v1.3 — SharePoint Graph API)
+   LC JSON 自動取得 (v1.3)
 ══════════════════════════════ */
 async function autoLoadLcJson(){
   const lcNo=S.siHeader?.cr49f_lc_no||'';
@@ -911,10 +913,9 @@ async function autoLoadLcJson(){
     showStatus('lcAutoStatus','warn','⚠ SharePoint未接続（Graph tokenなし）。手動読込を使用してください。');
     return;
   }
-  const lcNoClean=lcNo.split(/\s/)[0]; // "ILC2603819 DATED ON..." → "ILC2603819"
+  const lcNoClean=lcNo.split(/\s/)[0];
   const fileName=`${contractNo}_${lcNoClean}.json`;
   showStatus('lcAutoStatus','info',`<span class="spin">⟳</span> ${fileName} を取得中...`);
-  // 検索パス: D-01-LC_FD_CHECKER 優先、▲ LC_LEENAI_JSON フォールバック
   const spPaths=[
     `古紙/-. AI 活用/D-01-LC_FD_CHECKER/${fileName}`,
     `古紙/-. 古紙書類/▲ LC_LEENAI_JSON/${fileName}`
@@ -955,7 +956,7 @@ async function autoLoadLcJson(){
 ══════════════ */
 async function openLcJson(){
   if(!window.showOpenFilePicker){
-    showStatus('lcLoadStatus','warn','このブラウザは File System Access API 非対応です。別の方法で読み込んでください。');
+    showStatus('lcLoadStatus','warn','このブラウザは File System Access API 非対応です。');
     return;
   }
   try{
@@ -968,7 +969,6 @@ async function openLcJson(){
     const data=JSON.parse(text);
     const lc=Array.isArray(data)?data[0]:data;
     S.lcJson=lc;
-
     S.lcDateEn=parseLcDate(lc.lcDate||'');
     const po=parsePO(lc.commodity45A||'');
     S.poNo=po.no;
@@ -976,11 +976,9 @@ async function openLcJson(){
     S.goodsType=detectGoodsType(lc.commodity45A||'',S.siDetail?.crcf9_productname||'');
     S.docs46A=lc.docs46A||[];
     S.addCond47A=lc.addCond47A||'';
-
     showLcJsonInfo(lc);
     showStatus('lcLoadStatus','ok',`✅ LC JSON 読込完了: ${fh.name}`);
     document.getElementById('lcJsonStatus').style.display='none';
-
     updateBadge('b-verify','⚠');
   }catch(e){
     if(e.name!=='AbortError')
@@ -990,14 +988,13 @@ async function openLcJson(){
 
 function showLcJsonInfo(lc){
   const el=document.getElementById('lcJsonInfo');
-  const bankLabel=lc.issuingBank||'—';
   el.innerHTML=`
     <div class="lc-json-row">
       <span class="lc-label">LC No.</span>
       <span class="lc-val">${lc.lcNo||'—'}</span>
       <span class="lc-label">DATED ON</span>
       <span class="lc-val">${S.lcDateEn||lc.lcDate||'—'}</span>
-      <span class="lc-bank">${bankLabel}</span>
+      <span class="lc-bank">${lc.issuingBank||'—'}</span>
     </div>
     <div class="lc-json-row">
       <span class="lc-label">PO No.</span>
@@ -1011,19 +1008,74 @@ function showLcJsonInfo(lc){
 }
 
 /* ══════════════
-   Build All Docs
+   Build All Docs (v1.07: multi-importer)
 ══════════════ */
 function buildAll(){
   if(!S.booking){showStatus('loadStatus','warn','先に Invoice を Load してください。');return;}
-  renderQQ();
-  renderCO();
-  renderBeneCert();
-  renderFreeTime();
+
+  // v1.07: Detect importer from Invoice No.
+  S.importer = detectImporter(S.invoiceNo);
+
+  // Update header badge
+  const badge = document.getElementById('importerBadge');
+  if(S.importer === 'ASPEX'){
+    badge.textContent = '[ASPEX]';
+    badge.style.color = 'var(--purple)';
+  } else {
+    badge.textContent = '[SAIGON]';
+    badge.style.color = 'var(--warn)';
+  }
+
+  if(S.importer === 'ASPEX'){
+    // ASPEX: Bene Cert のみ生成、Q&Q/CO/FT は N/A
+    renderBeneCertAspex();
+    renderNAForPanel('qqco-content',
+      'ASPEX は Q&amp;Q Certificate / Certificate of Origin 不要 (docs46A に記載なし)');
+    renderNAForPanel('ft-content',
+      'ASPEX は Free Time Certificate 不要 — Free Time は "FOR BENEFICIARY\'S INFORMATION ONLY"');
+    updateBadge('b-qqco','N/A');
+    updateBadge('b-bene','✓');
+    updateBadge('b-ft','N/A');
+  } else {
+    // SAIGON: 既存4種生成
+    renderQQ();
+    renderCO();
+    renderBeneCert();
+    renderFreeTime();
+    // Restore SAIGON panel structure if previously shown as N/A
+    restoreSaigonPanels();
+    updateBadge('b-qqco','✓');
+    updateBadge('b-bene','✓');
+    updateBadge('b-ft','✓');
+  }
+
   if(S.lcJson) runLcVerify();
-  updateBadge('b-qqco','✓');
-  updateBadge('b-bene','✓');
-  updateBadge('b-ft','✓');
   alert('全서류を生成しました！各タブで確認・印刷できます。');
+}
+
+/* N/A パネル表示ヘルパー */
+function renderNAForPanel(containerId, reason){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = `<div class="na-panel">N/A — ${reason}</div>`;
+}
+
+/* SAIGON用パネル構造を復元 */
+function restoreSaigonPanels(){
+  const qqco = document.getElementById('qqco-content');
+  if(!qqco.querySelector('#doc-qq')){
+    qqco.innerHTML = `
+      <div class="doc-section-title">Certificate of Quality and Quantity</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
+      <div class="doc-section-title">Certificate of Origin</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>`;
+  }
+  const ftc = document.getElementById('ft-content');
+  if(!ftc.querySelector('#doc-ft')){
+    ftc.innerHTML = `
+      <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>`;
+  }
 }
 
 /* ══════════════════════════════
@@ -1038,14 +1090,28 @@ function certHeader(){
     </div>`;
 }
 
+/* v1.07: 業者別 EXPORTER / IMPORTER ブロック */
 function certExporterImporter(){
-  return `
+  const exporterBlock = `
     <div class="cert-party-block">
       <div class="cert-exporter-label">EXPORTER</div>
       LEENEAR CORPORATION<br>
       VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
       TEL: +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX: +81-3-3528-9851
-    </div>
+    </div>`;
+
+  if(S.importer === 'ASPEX'){
+    return exporterBlock + `
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">IMPORTER</div>
+      PT ASPEX KUMBONG<br>
+      WISMA KORINDO 11TH FLOOR, JL. M.T HARYONO KAV. 62, JAKARTA SELATAN, INDONESIA 12780<br>
+      TEL: 62-21-797-5959 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX: 62-21-797-6407
+    </div>`;
+  }
+
+  // SAIGON (default)
+  return exporterBlock + `
     <div class="cert-party-block">
       <div class="cert-exporter-label">IMPORTER</div>
       SAIGON PAPER CORPORATION<br>
@@ -1110,7 +1176,7 @@ function getCommonItems(){
 }
 
 /* ══════════
-   Q&Q
+   Q&Q (SAIGON)
 ══════════ */
 function renderQQ(){
   const bk=S.booking;
@@ -1141,7 +1207,7 @@ function renderQQ(){
 }
 
 /* ══════════
-   CO
+   CO (SAIGON)
 ══════════ */
 function renderCO(){
   const bk=S.booking;
@@ -1166,7 +1232,7 @@ function renderCO(){
 }
 
 /* ══════════
-   Bene Cert
+   Bene Cert (SAIGON)
 ══════════ */
 function renderBeneCert(){
   const bk=S.booking;
@@ -1181,10 +1247,7 @@ function renderBeneCert(){
   const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
   const carrier=S.carrierName||'—';
   const sc=S.saleContract;
-  const lrsNo=sc?.cr49f_sale_contract_no||'—';
-  const contractMt=getContractMt();
   const poLine=getPoLine();
-  const goodsType=S.goodsType||'OCC';
   const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
 
   document.getElementById('doc-bene').innerHTML=`
@@ -1249,7 +1312,61 @@ function renderBeneCert(){
 }
 
 /* ══════════
-   Free Time
+   Bene Cert ASPEX (v1.07)
+══════════ */
+function renderBeneCertAspex(){
+  const bk=S.booking;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const issuanceDate=fmtDateEn(getEtd(bk));
+  const blNo=bk.cr49f_bl_number||'—';
+  const lc=getLcNo();
+  const importLicNo=getAspexImportLicence();
+
+  document.getElementById('doc-bene').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Beneficiary's Certificate</div>
+    <div class="cert-meta">
+      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
+      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
+    </div>
+    <br>
+    <div class="bene-lc-stmt">
+      BENEFICIARY'S CERTIFICATE CERTIFYING THAT ONE SET OF SHIPPING DOCUMENTS
+      (ORIGINAL INVOICE, ORIGINAL PACKING LIST, 1/3 SET OF ORIGINAL BILL OF LADING,
+      1 ORIGINAL NON-NEGOTIABLE B/L, INSURANCE POLICY OR CERTIFICATE) SHOULD BE SENT
+      TO PT. ASPEX KUMBONG, ATTN: MARKETING DEPT., WISMA KORINDO 11TH FLOOR,
+      JL. M.T HARYONO KAV-62, JAKARTA SELATAN, INDONESIA BY COURIER.
+    </div>
+    <div class="cert-items" style="margin-top:12px;">
+      <div class="cert-item">
+        <span class="cert-bullet">●</span>
+        <span class="cert-item-label">INVOICE NO.</span>
+        <span class="cert-item-val">${invoiceNo}</span>
+      </div>
+      <div class="cert-item">
+        <span class="cert-bullet">●</span>
+        <span class="cert-item-label">B/L NO.</span>
+        <span class="cert-item-val">${blNo}</span>
+      </div>
+      <div class="cert-item">
+        <span class="cert-bullet">●</span>
+        <span class="cert-item-label">L/C NO.</span>
+        <span class="cert-item-val">${lc}</span>
+      </div>
+      <div class="cert-item">
+        <span class="cert-bullet">●</span>
+        <span class="cert-item-label">IMPORT LICENCE NO.</span>
+        <span class="cert-item-val">${importLicNo}</span>
+      </div>
+    </div>
+    <br>
+    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
+    ${certBottom()}
+    ${certSig()}`;
+}
+
+/* ══════════
+   Free Time (SAIGON)
 ══════════ */
 function renderFreeTime(){
   const bk=S.booking;
@@ -1291,7 +1408,7 @@ function renderFreeTime(){
 }
 
 /* ══════════════
-   LC Verification
+   LC Verification (v1.07: ASPEX分岐)
 ══════════════ */
 function runLcVerify(){
   if(!S.lcJson){
@@ -1313,85 +1430,151 @@ function runLcVerify(){
     status:compassLc===jsonLc?'ok':'ng'
   });
 
-  // 2. Country of Origin
-  results.push({badge:'OK',text:'Country of Origin: JAPAN (固定)',status:'ok'});
+  if(S.importer === 'ASPEX'){
+    /* ── ASPEX 専用チェック ── */
 
-  // 3. Q&Q Certificate required
-  const has3=lc.docs46A.some(d=>d.toLowerCase().includes('quality'));
-  results.push({
-    badge:has3?'OK':'NG',
-    text:'Q&Q Certificate: '+(has3?'LC 46Aに記載あり（3 ORIGINALS）':'LC 46Aに記載なし — 確認要'),
-    status:has3?'ok':'ng'
-  });
-
-  // 4. CO required
-  const hasCO=lc.docs46A.some(d=>d.toLowerCase().includes('origin'));
-  results.push({
-    badge:hasCO?'OK':'NG',
-    text:'Certificate of Origin: '+(hasCO?'LC 46Aに記載あり（3 ORIGINALS）':'記載なし'),
-    status:hasCO?'ok':'ng'
-  });
-
-  // 5. Bene Cert required
-  results.push({
-    badge:lc.beneCertRequired?'OK':'WARN',
-    text:'Beneficiary\'s Certificate: '+(lc.beneCertRequired?'必要（5 working days以内）':'LC未確認'),
-    status:lc.beneCertRequired?'ok':'warn'
-  });
-
-  // 6. Free Time required
-  const hasFT=lc.docs46A.some(d=>d.toLowerCase().includes('demurrage')||d.toLowerCase().includes('free time'));
-  results.push({
-    badge:hasFT?'OK':'WARN',
-    text:'Free Time Certificate: '+(hasFT?'LC 46Aに記載あり':'LC未確認 — B/L FREE TIME条項確認要'),
-    status:hasFT?'ok':'warn'
-  });
-
-  // 7. B/L No. data check
-  const blNo=bk.cr49f_bl_number||'';
-  results.push({
-    badge:blNo&&blNo.length>0?'OK':'WARN',
-    text:'B/L No.: '+(blNo||'(空欄) — 선積後にCOMPASSで確認要'),
-    status:blNo?'ok':'warn'
-  });
-
-  // 8. ETD/ETA ソース確認
-  const etdSrc=bk.crcf9_bl_etd?'B/L確定値':'予定値(crcf9_bl_etd未登録)';
-  const etaSrc=bk.crcf9_bl_eta?'B/L確定値':'予定値(crcf9_bl_eta未登録)';
-  results.push({
-    badge:bk.crcf9_bl_etd?'OK':'WARN',
-    text:`ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
-    status:bk.crcf9_bl_etd?'ok':'warn'
-  });
-
-  // 9. Amount check
-  results.push({
-    badge:'INFO',
-    text:`Invoice Amount: USD ${S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2})} `+
-         `(${S.totalNwMt.toFixed(2)} MT × ${S.saleDetail?.cr49f_price||0} USD/MT)`,
-    status:'info'
-  });
-
-  // 10. Vietcombank extra check
-  if(S.bankType==='Vietcombank'){
+    // 2. Bene Cert確認
+    const hasBene = lc.docs46A.some(d => d.toUpperCase().includes('BENEFICIARY'));
     results.push({
-      badge:'WARN',
-      text:'[Vietcombank専用] Doc.9: APPLICANT FAX/EMAIL (Security Deposit Number通知) — 別途提出要',
-      status:'warn'
+      badge: hasBene ? 'OK' : 'NG',
+      text: 'Beneficiary\'s Certificate: ' + (hasBene ? 'LC 46Aに記載あり' : 'LC 46Aに記載なし — 確認要'),
+      status: hasBene ? 'ok' : 'ng'
     });
+
+    // 3. Import Licence確認
+    const importLicNo = getAspexImportLicence();
     results.push({
-      badge:'WARN',
-      text:'[Vietcombank専用] Extra Copy Set: 全서류1セットのコピーを追加提出要（未提出はUSD22控除）',
-      status:'warn'
+      badge: importLicNo !== '—' ? 'OK' : 'WARN',
+      text: 'Import Licence No.: ' + (importLicNo !== '—' ? importLicNo : '(未取得) — LC JSON addCond47A を確認してください'),
+      status: importLicNo !== '—' ? 'ok' : 'warn'
+    });
+
+    // 4. 45FT Container 禁止チェック
+    const has45ft = S.containers.some(c => (c.crcf9_type||'').toUpperCase().includes('45'));
+    results.push({
+      badge: has45ft ? 'NG' : 'OK',
+      text: '45FT Container: ' + (has45ft ? '⚠ 45FT コンテナ使用禁止！ASPEX は 40FT のみ可' : 'OK（40FT のみ使用）'),
+      status: has45ft ? 'ng' : 'ok'
+    });
+
+    // 5. Q&Q/CO 不要確認
+    const hasQQ = lc.docs46A.some(d => d.toLowerCase().includes('quality'));
+    const hasCO = lc.docs46A.some(d => d.toLowerCase().includes('origin'));
+    results.push({
+      badge: (!hasQQ && !hasCO) ? 'OK' : 'WARN',
+      text: 'Q&Q / CO: ' + (!hasQQ && !hasCO
+        ? 'LC 46A に記載なし（生成不要）'
+        : '⚠ LC 46A に Q&Q または CO の記載あり — 確認要'),
+      status: (!hasQQ && !hasCO) ? 'ok' : 'warn'
+    });
+
+    // 6. B/L No. check
+    const blNo = bk.cr49f_bl_number||'';
+    results.push({
+      badge: blNo ? 'OK' : 'WARN',
+      text: 'B/L No.: ' + (blNo || '(空欄) — 선積後にCOMPASSで確認要'),
+      status: blNo ? 'ok' : 'warn'
+    });
+
+    // 7. ETD/ETA ソース確認
+    const etdSrc = bk.crcf9_bl_etd ? 'B/L確定値' : '予定値(crcf9_bl_etd未登録)';
+    const etaSrc = bk.crcf9_bl_eta ? 'B/L確定値' : '予定値(crcf9_bl_eta未登録)';
+    results.push({
+      badge: bk.crcf9_bl_etd ? 'OK' : 'WARN',
+      text: `ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
+      status: bk.crcf9_bl_etd ? 'ok' : 'warn'
+    });
+
+    // 8. Discrepancy fee info
+    results.push({
+      badge: 'INFO',
+      text: `Discrepancy Fee: ${lc.discrepancyFee||'USD 80.00'} (ASPEX固定)`,
+      status: 'info'
+    });
+
+  } else {
+    /* ── SAIGON 専用チェック ── */
+
+    // 2. Country of Origin
+    results.push({badge:'OK',text:'Country of Origin: JAPAN (固定)',status:'ok'});
+
+    // 3. Q&Q Certificate required
+    const has3=lc.docs46A.some(d=>d.toLowerCase().includes('quality'));
+    results.push({
+      badge:has3?'OK':'NG',
+      text:'Q&Q Certificate: '+(has3?'LC 46Aに記載あり（3 ORIGINALS）':'LC 46Aに記載なし — 確認要'),
+      status:has3?'ok':'ng'
+    });
+
+    // 4. CO required
+    const hasCO=lc.docs46A.some(d=>d.toLowerCase().includes('origin'));
+    results.push({
+      badge:hasCO?'OK':'NG',
+      text:'Certificate of Origin: '+(hasCO?'LC 46Aに記載あり（3 ORIGINALS）':'記載なし'),
+      status:hasCO?'ok':'ng'
+    });
+
+    // 5. Bene Cert required
+    results.push({
+      badge:lc.beneCertRequired?'OK':'WARN',
+      text:'Beneficiary\'s Certificate: '+(lc.beneCertRequired?'必要（5 working days以内）':'LC未確認'),
+      status:lc.beneCertRequired?'ok':'warn'
+    });
+
+    // 6. Free Time required
+    const hasFT=lc.docs46A.some(d=>d.toLowerCase().includes('demurrage')||d.toLowerCase().includes('free time'));
+    results.push({
+      badge:hasFT?'OK':'WARN',
+      text:'Free Time Certificate: '+(hasFT?'LC 46Aに記載あり':'LC未確認 — B/L FREE TIME条項確認要'),
+      status:hasFT?'ok':'warn'
+    });
+
+    // 7. B/L No. data check
+    const blNo=bk.cr49f_bl_number||'';
+    results.push({
+      badge:blNo&&blNo.length>0?'OK':'WARN',
+      text:'B/L No.: '+(blNo||'(空欄) — 선積後にCOMPASSで確認要'),
+      status:blNo?'ok':'warn'
+    });
+
+    // 8. ETD/ETA ソース確認
+    const etdSrc=bk.crcf9_bl_etd?'B/L確定値':'予定値(crcf9_bl_etd未登録)';
+    const etaSrc=bk.crcf9_bl_eta?'B/L確定値':'予定値(crcf9_bl_eta未登録)';
+    results.push({
+      badge:bk.crcf9_bl_etd?'OK':'WARN',
+      text:`ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
+      status:bk.crcf9_bl_etd?'ok':'warn'
+    });
+
+    // 9. Amount check
+    results.push({
+      badge:'INFO',
+      text:`Invoice Amount: USD ${S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2})} `+
+           `(${S.totalNwMt.toFixed(2)} MT × ${S.saleDetail?.cr49f_price||0} USD/MT)`,
+      status:'info'
+    });
+
+    // 10. Vietcombank extra check
+    if(S.bankType==='Vietcombank'){
+      results.push({
+        badge:'WARN',
+        text:'[Vietcombank専用] Doc.9: APPLICANT FAX/EMAIL (Security Deposit Number通知) — 別途提出要',
+        status:'warn'
+      });
+      results.push({
+        badge:'WARN',
+        text:'[Vietcombank専用] Extra Copy Set: 全서류1セットのコピーを追加提出要（未提出はUSD22控除）',
+        status:'warn'
+      });
+    }
+
+    // 11. Discrepancy fee info
+    results.push({
+      badge:'INFO',
+      text:`Discrepancy Fee: ${lc.discrepancyFee||'—'}`,
+      status:'info'
     });
   }
-
-  // 11. Discrepancy fee info
-  results.push({
-    badge:'INFO',
-    text:`Discrepancy Fee: ${lc.discrepancyFee||'—'}`,
-    status:'info'
-  });
 
   // Render
   const ngCount=results.filter(r=>r.status==='ng').length;
@@ -1401,7 +1584,7 @@ function runLcVerify(){
   document.getElementById('verifyStatus').className=
     'status show '+(ngCount>0?'err':warnCount>0?'warn':'ok');
   document.getElementById('verifyStatus').textContent=
-    `検証完了: ${ngCount>0?`NG: ${ngCount}件`:warnCount>0?`WARN: ${warnCount}件`:'All OK'} (${results.length}項目チェック)`;
+    `検証完了 [${S.importer}]: ${ngCount>0?`NG: ${ngCount}件`:warnCount>0?`WARN: ${warnCount}件`:'All OK'} (${results.length}項目チェック)`;
 
   document.getElementById('checkList').innerHTML=results.map(r=>`
     <div class="check-item ${r.status}">
@@ -1411,10 +1594,21 @@ function runLcVerify(){
 }
 
 /* ══════════════
-   ETD / ETA ヘルパー (v1.1 — crcf9_bl_etd / crcf9_bl_eta 優先、なければ予定値へフォールバック)
+   ETD / ETA ヘルパー
 ══════════════ */
 function getEtd(bk){ return bk.crcf9_bl_etd || bk.cr49f_etd || null; }
 function getEta(bk){ return bk.crcf9_bl_eta || bk.cr49f_eta || null; }
+
+/* ══════════════
+   ASPEX Import Licence ヘルパー (v1.07)
+══════════════ */
+function getAspexImportLicence(){
+  // LC JSON addCond47A から "IMPORT LICEN(S|C)E NO." 以降を抽出
+  const text = (S.lcJson?.addCond47A || '') + ' ' + (S.lcJson?.docs46A?.join(' ') || '');
+  if(!text.trim()) return '—';
+  const m = text.match(/IMPORT\s+LICEN[SC]E\s+(?:NO\.?\s*)([A-Z0-9./\-]+(?:\s+DATED\s+ON\s+[A-Z]+\s+\d+,?\s+\d{4})?)/i);
+  return m ? m[1].trim().toUpperCase() : '—';
+}
 
 /* ══════════════
    Utility Functions
@@ -1428,33 +1622,27 @@ function getLcNo(){
 }
 
 function getPod(){
-  // v1.2: crcf9_place_of_delivery_1/2/3 優先（라디오버튼選択値）
   if(S.selectedPod) return S.selectedPod;
   if(S.podList.length>0) return S.podList[0];
-  // フォールバック: LC JSON
   if(S.lcJson?.pod) return S.lcJson.pod;
   return '—';
 }
 
 function certBottom(){
-  // v1.2: crcf9_all — 모든 서류 하단에 삽입 (값 없으면 빈 문자열)
   if(!S.allText) return '';
   return `<div class="cert-bottom" style="margin-top:6px;">${S.allText}</div>`;
 }
 
 function getFreeTimeDeclare(){
-  // v1.3: LC JSONのdocs46AからDEMURRAGE/FREE TIME項目を自動抽出
   if(S.lcJson?.docs46A){
     const ftDoc=S.lcJson.docs46A.find(d=>
       d.toUpperCase().includes('DEMURRAGE')||d.toUpperCase().includes('FREE TIME DETENTION')
     );
     if(ftDoc){
-      // "CERTIFYING THAT " 以降を取得、"THIS CERTIFICATE IS NOT REQUIRED" 以前で切断
       const m=ftDoc.match(/CERTIFYING THAT\s+(.+?)(?:\.\s*THIS CERTIFICATE IS NOT REQUIRED|$)/is);
       if(m) return m[1].trim().toUpperCase()+'.';
     }
   }
-  // フォールバック: ハードコード
   return '10 DAYS FREE TIME DEMURRAGE AND 4 DAYS FREE TIME DETENTION OR 14 DAYS FREE TIME COMBINED FOR DEMURRAGE AND DETENTION AT DESTINATION.';
 }
 
@@ -1469,7 +1657,6 @@ function getPoLine(){
   const poNo=S.poNo||S.lcJson?.commodity45A&&extractPO(S.lcJson.commodity45A)||'';
   const poDate=S.poDate||'';
   if(!poNo) return '';
-  // v1.06: crcf9_allに既にOTHER TERMSが含まれていれば重複を避ける
   if(S.allText && S.allText.toUpperCase().includes('OTHER TERMS')) return '';
   const d=poDate?`DATE ${poDate}`:'';
   return `+ OTHER TERMS ARE ACCORDING TO PURCHASE ORDER NO. ${poNo} ${d}`.trim();
@@ -1500,7 +1687,6 @@ function parseLcDate(ddmmyyyy){
 
 function detectGoodsType(commodity45A,productname){
   const combined=(commodity45A+' '+productname).toUpperCase();
-  // v1.2: SOP3を先にチェック（SOP3 は OCC よりも SOP に属する）
   if(combined.includes('SOP3')) return 'SOP';
   if(combined.includes('SOP')) return 'SOP';
   if(combined.includes('SHREDDED')) return 'SOP';
