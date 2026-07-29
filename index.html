@@ -290,14 +290,23 @@ input,select{font-family:inherit;}
   .cert-wrap:last-child{break-after:avoid;page-break-after:avoid;}
   .cert-doc{display:block;}
   .na-panel{display:none!important;}
-  /* Powered by — 印刷時表示 */
+  /* Powered by — 全ページ最下部に固定（Wordのフッターと同じ動作） */
   .powered{
     display:block!important;
+    position:fixed;bottom:0;left:0;right:0;
     text-align:center;font-size:9px;color:#888;
-    padding:6px 0 0;border-top:0.5px solid #ccc;margin-top:10px;
+    padding:3px 0;border-top:0.5px solid #ccc;
     font-family:'Times New Roman',serif;letter-spacing:.3px;
+    background:#fff;
   }
-  /* ESL専用: 署名ラインの余白を縮小 */
+  /* ESL: 1ページをflex で埋める */
+  .esl-doc{
+    display:flex;flex-direction:column;
+    min-height:calc(297mm - 12mm - 12mm);
+    padding-bottom:14px;
+  }
+  .esl-spacer{flex:1;}
+  /* ESL署名ラインの余白 */
   .esl-doc .cert-sig-line{margin-top:16px;}
 }
 
@@ -315,6 +324,7 @@ input,select{font-family:inherit;}
 .esl-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:3px 0 7px;}
 .esl-tbl td{border:1px solid #000;padding:2px 6px;vertical-align:middle;}
 .esl-label{font-weight:700;width:42%;}
+.esl-spacer{display:none;}
 
 /* ── Misc ── */
 .divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
@@ -1870,12 +1880,12 @@ function renderESL(){
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
     <div class="esl-title">Exporter's Statement Letter</div>
-    <div style="font-size:11.5px;margin-bottom:4px;line-height:1.4;">
+    <div style="font-size:11.5px;margin-bottom:8px;line-height:1.6;">
       <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
       <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
     </div>
-    <div style="font-size:11.5px;font-weight:700;margin-bottom:3px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:11px;margin-left:12px;line-height:1.35;margin-bottom:6px;">
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:5px;">WE, HEREBY DECLARE THAT:</div>
+    <div style="font-size:11px;margin-left:12px;line-height:1.55;margin-bottom:10px;">
       1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
       &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
       &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
@@ -1884,7 +1894,7 @@ function renderESL(){
       2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
       PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
     </div>
-    <div style="font-size:11.5px;font-weight:700;text-decoration:underline;margin-bottom:3px;">GOODS CONDITION:</div>
+    <div style="font-size:11.5px;font-weight:700;text-decoration:underline;margin-bottom:4px;">GOODS CONDITION:</div>
     <table class="esl-tbl">
       <tr><td class="esl-label">IMPORTER NAME</td><td>: PT. ASPEX KUMBONG</td></tr>
       <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
@@ -1896,19 +1906,20 @@ function renderESL(){
       <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
       <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
     </table>
-    <div style="font-size:11.5px;font-weight:700;margin-bottom:3px;">PROVISION REFERENCE:</div>
-    <div style="font-size:11px;margin-bottom:6px;line-height:1.35;">
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:4px;">PROVISION REFERENCE:</div>
+    <div style="font-size:11px;margin-bottom:8px;line-height:1.5;">
       REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
       IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
     </div>
-    <div style="font-size:11.5px;margin-bottom:6px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:11.5px;line-height:1.5;">
+    <div style="font-size:11.5px;margin-bottom:8px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
+    <div style="font-size:11.5px;line-height:1.7;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
       <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
       <div>TITLE : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAFF</div>
     </div>
+    <div class="esl-spacer"></div>
     ${certSig()}`;
 }
 
