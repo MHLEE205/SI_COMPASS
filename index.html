@@ -3,32 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.09</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.10</title>
 <style>
 /* ── Base ── */
 :root {
-  --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --surface3:#2d333b;
-  --border:#30363d; --border2:#444c56;
-  --text:#c9d1d9; --muted:#8b949e; --muted2:#6e7681;
-  --accent:#58a6ff; --accent2:#3fb950; --warn:#d29922; --danger:#f85149;
-  --purple:#a371f7;
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --surface3:#2a2f46;
+  --border:#2e3350; --border2:#3d4466;
+  --text:#e2e8f0; --text2:#8892a4; --text3:#4a5568;
+  --muted:#8892a4; --muted2:#4a5568;
+  --accent:#4f8ef7; --accent2:#3fb950;
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+  --purple:#a371f7; --radius:10px;
+}
+[data-theme="light"] {
+  --bg:#f4f6fb; --surface:#ffffff; --surface2:#f0f4ff; --surface3:#e8edf7;
+  --border:#d1d5db; --text:#111827; --text2:#6b7280; --text3:#9ca3af;
+  --muted:#6b7280; --muted2:#9ca3af;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+body{font-family:'Segoe UI','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
 button{cursor:pointer;font-family:inherit;}
 input,select{font-family:inherit;}
 
 /* ── Header ── */
 .hdr{
   background:var(--surface);border-bottom:1px solid var(--border);
-  padding:10px 20px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:200;height:50px;
 }
-.hdr-left{display:flex;align-items:center;gap:12px;}
-.hdr-sys{font-size:11px;color:var(--muted);background:var(--surface2);
-  border:1px solid var(--border);border-radius:4px;padding:2px 8px;}
-.hdr-title{font-size:14px;font-weight:700;color:var(--accent);}
-.hdr-right{display:flex;align-items:center;gap:8px;}
-.hdr-ver{font-size:11px;color:var(--muted2);}
+.logo{font-size:17px;font-weight:800;letter-spacing:1px;}
+.logo span{color:var(--accent);}
+.hdr-sys{font-size:10px;color:var(--text2);background:var(--surface2);
+  border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-weight:600;}
+.hdr-title{font-size:12px;font-weight:600;color:var(--text2);}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.hdr-ver{font-size:11px;color:#fff;background:var(--accent);padding:2px 9px;border-radius:12px;font-weight:700;}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;}
+.theme-btn:hover{border-color:var(--accent);color:var(--text);}
 .auth-chip{
   font-size:12px;padding:4px 12px;border-radius:20px;
   border:1px solid var(--border);background:var(--surface2);
@@ -57,6 +68,10 @@ input,select{font-family:inherit;}
 }
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .tab:hover:not(.active){color:var(--text);}
+.tab.needed{color:var(--text);background:rgba(79,142,247,0.07);}
+.tab.needed.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent;}
+.tab.na{opacity:0.35;}
+.tab.na:hover{opacity:0.55;}
 .tab-badge{
   font-size:10px;background:var(--surface3);border-radius:8px;
   padding:1px 5px;margin-left:4px;color:var(--muted);
@@ -70,8 +85,9 @@ input,select{font-family:inherit;}
 
 /* ── Buttons ── */
 .btn{
-  padding:7px 14px;border-radius:6px;border:1px solid transparent;
-  font-size:13px;font-weight:500;transition:all .15s;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:7px 14px;border-radius:8px;border:1px solid transparent;
+  font-size:12px;font-weight:600;font-family:inherit;transition:all .15s;white-space:nowrap;cursor:pointer;
 }
 .btn-primary{background:var(--accent);color:#000;border-color:var(--accent);}
 .btn-primary:hover{opacity:.85;}
@@ -261,35 +277,43 @@ input,select{font-family:inherit;}
 
 /* ── Print ── */
 @media print{
-  @page{size:A4;margin:15mm;}
+  /* margin 6mm以下 → Chrome/Edgeのブラウザヘッダー/フッター（日付・URL）を非表示 */
+  @page{size:A4;margin:6mm 12mm;}
   body{background:#fff!important;color:#000!important;}
   .hdr,.tabs,.auth-bar,.doc-actions,.card,.check-wrap,.status,.lc-json-row,
-  .doc-section-title,.btn,.form-row,.no-print,.powered{display:none!important;}
-  /* v1.06: 非activeパネルを非表示 → printDocs()のタブ別印刷を正常化 */
+  .doc-section-title,.btn,.form-row,.no-print{display:none!important;}
   .main{padding:0!important;max-width:100%!important;}
   .panel{display:none!important;}
   .panel.active{display:block!important;}
   .cert-wrap{border:none;padding:0;margin-bottom:0;
     break-after:page;page-break-after:always;break-inside:avoid;}
-  /* :last-child で末尾cert-wrapのみbreak-avoid */
   .cert-wrap:last-child{break-after:avoid;page-break-after:avoid;}
   .cert-doc{display:block;}
   .na-panel{display:none!important;}
+  /* Powered by — 印刷時表示 */
+  .powered{
+    display:block!important;
+    text-align:center;font-size:9px;color:#888;
+    padding:6px 0 0;border-top:0.5px solid #ccc;margin-top:10px;
+    font-family:'Times New Roman',serif;letter-spacing:.3px;
+  }
+  /* ESL専用: 署名ラインの余白を縮小 */
+  .esl-doc .cert-sig-line{margin-top:16px;}
 }
 
 /* ── ESL Document ── */
 .esl-doc{
   background:#fff;color:#000;
   font-family:'Times New Roman',serif;
-  padding:22px 30px 28px;max-width:760px;margin:0 auto;
-  font-size:12px;line-height:1.5;
+  padding:10px 24px 12px;max-width:760px;margin:0 auto;
+  font-size:11.5px;line-height:1.4;
 }
 .esl-title{
-  text-align:center;font-size:15px;font-weight:700;
-  text-transform:uppercase;margin:16px 0 12px;letter-spacing:.3px;
+  text-align:center;font-size:14px;font-weight:700;
+  text-transform:uppercase;margin:6px 0 5px;letter-spacing:.3px;
 }
-.esl-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 14px;}
-.esl-tbl td{border:1px solid #000;padding:4px 8px;vertical-align:middle;}
+.esl-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:3px 0 7px;}
+.esl-tbl td{border:1px solid #000;padding:2px 6px;vertical-align:middle;}
 .esl-label{font-weight:700;width:42%;}
 
 /* ── Misc ── */
@@ -313,17 +337,18 @@ input,select{font-family:inherit;}
 
 <!-- ── Header ── -->
 <div class="hdr">
-  <div class="hdr-left">
-    <span class="hdr-sys">SYS-D-04</span>
-    <span class="hdr-title">✦ CERTIFICATE TOOL <span id="importerBadge" style="color:var(--warn)">[—]</span></span>
-  </div>
+  <div class="logo">LEEN<span>AI</span></div>
+  <span class="hdr-sys">SYS-D-04</span>
+  <span class="hdr-title">CERTIFICATE TOOL</span>
+  <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.09</span>
+    <span class="hdr-ver" id="header-sub">v1.10</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
     </div>
-    <button class="btn btn-sm btn-primary" id="loginBtn" onclick="startLogin()">Login</button>
+    <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
+    <button class="btn btn-sm btn-primary" id="loginBtn" onclick="startLogin()">🔑 Login</button>
     <button class="btn btn-sm btn-ghost" id="logoutBtn" onclick="doLogout()" style="display:none">Logout</button>
   </div>
 </div>
@@ -336,11 +361,12 @@ input,select{font-family:inherit;}
 <!-- ── Tabs ── -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('search')">📋 Invoice 検索 / Load</div>
-  <div class="tab" onclick="switchTab('qqco')">① Q&amp;Q · CO<span class="tab-badge" id="b-qqco">—</span></div>
-  <div class="tab" onclick="switchTab('bene')">② Beneficiary Cert<span class="tab-badge" id="b-bene">—</span></div>
-  <div class="tab" onclick="switchTab('ft')">③ Free Time Cert<span class="tab-badge" id="b-ft">—</span></div>
-  <div class="tab" onclick="switchTab('verify')">🔍 LC 検証<span class="tab-badge" id="b-verify">—</span></div>
-  <div class="tab" id="tab-esl" onclick="switchTab('esl')" style="display:none">④ ESL<span class="tab-badge" id="b-esl">—</span></div>
+  <div class="tab" id="tab-verify" onclick="switchTab('verify')">🔍 LC 検証<span class="tab-badge" id="b-verify">—</span></div>
+  <div class="tab" id="tab-qq" onclick="switchTab('qq')">① Q&amp;Q<span class="tab-badge" id="b-qq">—</span></div>
+  <div class="tab" id="tab-co" onclick="switchTab('co')">② CO<span class="tab-badge" id="b-co">—</span></div>
+  <div class="tab" id="tab-bene" onclick="switchTab('bene')">③ Beneficiary Cert<span class="tab-badge" id="b-bene">—</span></div>
+  <div class="tab" id="tab-ft" onclick="switchTab('ft')">④ Free Time Cert<span class="tab-badge" id="b-ft">—</span></div>
+  <div class="tab" id="tab-esl" onclick="switchTab('esl')" style="display:none">⑤ ESL<span class="tab-badge" id="b-esl">—</span></div>
 </div>
 
 <!-- ═══ MAIN ═══ -->
@@ -418,15 +444,25 @@ input,select{font-family:inherit;}
     </div>
   </div><!-- /panel-search -->
 
-  <!-- ══ TAB 2: Q&Q · CO ══ -->
-  <div class="panel" id="panel-qqco">
+  <!-- ══ TAB: Q&Q ══ -->
+  <div class="panel" id="panel-qq">
     <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('qqco')">🖨 印刷 (Q&amp;Q + CO × 各3部)</button>
-      <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部ずつ用意して署名・捺印</span>
+      <button class="btn btn-success" onclick="printDocs('qq')">🖨 印刷 (Q&amp;Q × 3部)</button>
+      <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部用意して署名・捺印</span>
     </div>
-    <div id="qqco-content">
+    <div id="qq-content">
       <div class="doc-section-title">Certificate of Quality and Quantity</div>
       <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: CO ══ -->
+  <div class="panel" id="panel-co">
+    <div class="doc-actions no-print">
+      <button class="btn btn-success" onclick="printDocs('co')">🖨 印刷 (CO × 3部)</button>
+      <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部用意して署名・捺印</span>
+    </div>
+    <div id="co-content">
       <div class="doc-section-title">Certificate of Origin</div>
       <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>
     </div>
@@ -472,7 +508,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.09</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.10</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -691,6 +727,43 @@ function doLogout(){
   S.graphToken=null;S.graphTokenExpiry=0;
   sessionStorage.clear();
   setConnected(false);
+}
+
+function updateTabHighlights(){
+  const docTabs=['qq','co','bene','ft','esl'];
+  // 一旦全部リセット
+  docTabs.forEach(id=>{
+    const el=document.getElementById('tab-'+id);
+    if(el){el.classList.remove('needed','na');}
+  });
+  if(S.importer==='ASPEX'){
+    // ASPEX: bene + esl 必要 / qq + co + ft 不要
+    ['bene','esl'].forEach(id=>{
+      const el=document.getElementById('tab-'+id);
+      if(el) el.classList.add('needed');
+    });
+    ['qq','co','ft'].forEach(id=>{
+      const el=document.getElementById('tab-'+id);
+      if(el) el.classList.add('na');
+    });
+  } else {
+    // SAIGON: qq + co + bene + ft 必要 / esl 不要
+    ['qq','co','bene','ft'].forEach(id=>{
+      const el=document.getElementById('tab-'+id);
+      if(el) el.classList.add('needed');
+    });
+    const eslEl=document.getElementById('tab-esl');
+    if(eslEl) eslEl.classList.add('na');
+  }
+}
+
+function toggleTheme(){
+  const html=document.documentElement;
+  const isLight=html.dataset.theme==='light';
+  html.dataset.theme=isLight?'dark':'light';
+  const btn=document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent=isLight?'🌙 ダーク':'☀️ ライト';
+  localStorage.setItem('leenai_theme',html.dataset.theme);
 }
 
 /* ══════════════
@@ -1060,6 +1133,7 @@ function buildAll(){
 
   // v1.07: Detect importer from Invoice No.
   S.importer = detectImporter(S.invoiceNo);
+  updateTabHighlights();
 
   // Update header badge
   const badge = document.getElementById('importerBadge');
@@ -1076,11 +1150,14 @@ function buildAll(){
     renderBeneCertAspex();
     renderESL();
     showTab('esl');
-    renderNAForPanel('qqco-content',
-      'ASPEX は Q&amp;Q Certificate / Certificate of Origin 不要 (docs46A に記載なし)');
+    renderNAForPanel('qq-content',
+      'ASPEX は Q&amp;Q Certificate 不要');
+    renderNAForPanel('co-content',
+      'ASPEX は Certificate of Origin 不要');
     renderNAForPanel('ft-content',
       'ASPEX は Free Time Certificate 不要 — Free Time は "FOR BENEFICIARY\'S INFORMATION ONLY"');
-    updateBadge('b-qqco','N/A');
+    updateBadge('b-qq','N/A');
+    updateBadge('b-co','N/A');
     updateBadge('b-bene','✓');
     updateBadge('b-ft','N/A');
     updateBadge('b-esl','✓');
@@ -1090,9 +1167,9 @@ function buildAll(){
     renderCO();
     renderBeneCert();
     renderFreeTime();
-    // Restore SAIGON panel structure if previously shown as N/A
     restoreSaigonPanels();
-    updateBadge('b-qqco','✓');
+    updateBadge('b-qq','✓');
+    updateBadge('b-co','✓');
     updateBadge('b-bene','✓');
     updateBadge('b-ft','✓');
   }
@@ -1111,17 +1188,21 @@ function renderNAForPanel(containerId, reason){
 /* SAIGON用パネル構造を復元 */
 function restoreSaigonPanels(){
   hideTab('esl');
-  const qqco = document.getElementById('qqco-content');
-  if(!qqco.querySelector('#doc-qq')){
-    qqco.innerHTML = `
+  const qqEl=document.getElementById('qq-content');
+  if(qqEl && !qqEl.querySelector('#doc-qq')){
+    qqEl.innerHTML=`
       <div class="doc-section-title">Certificate of Quality and Quantity</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
+      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>`;
+  }
+  const coEl=document.getElementById('co-content');
+  if(coEl && !coEl.querySelector('#doc-co')){
+    coEl.innerHTML=`
       <div class="doc-section-title">Certificate of Origin</div>
       <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>`;
   }
-  const ftc = document.getElementById('ft-content');
-  if(!ftc.querySelector('#doc-ft')){
-    ftc.innerHTML = `
+  const ftc=document.getElementById('ft-content');
+  if(ftc && !ftc.querySelector('#doc-ft')){
+    ftc.innerHTML=`
       <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
       <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>`;
   }
@@ -1782,19 +1863,19 @@ function renderESL(){
 
   const goodsTrFirst=`<tr>
     <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+    <td style="height:22px;">${rawGoods[0]?': '+rawGoods[0]:':'}</td>
   </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td style="height:22px;">${r?': '+r:''}</td></tr>`).join('');
 
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
     <div class="esl-title">Exporter's Statement Letter</div>
-    <div style="font-size:12px;margin-bottom:12px;line-height:1.9;">
+    <div style="font-size:11.5px;margin-bottom:4px;line-height:1.4;">
       <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
       <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
     </div>
-    <div style="font-size:12px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:11.5px;margin-left:12px;line-height:1.7;margin-bottom:14px;">
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:3px;">WE, HEREBY DECLARE THAT:</div>
+    <div style="font-size:11px;margin-left:12px;line-height:1.35;margin-bottom:6px;">
       1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
       &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
       &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
@@ -1803,7 +1884,7 @@ function renderESL(){
       2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
       PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
     </div>
-    <div style="font-size:12px;font-weight:700;text-decoration:underline;margin-bottom:4px;">GOODS CONDITION:</div>
+    <div style="font-size:11.5px;font-weight:700;text-decoration:underline;margin-bottom:3px;">GOODS CONDITION:</div>
     <table class="esl-tbl">
       <tr><td class="esl-label">IMPORTER NAME</td><td>: PT. ASPEX KUMBONG</td></tr>
       <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
@@ -1815,14 +1896,14 @@ function renderESL(){
       <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
       <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
     </table>
-    <div style="font-size:12px;font-weight:700;margin-bottom:4px;">PROVISION REFERENCE:</div>
-    <div style="font-size:11.5px;margin-bottom:14px;line-height:1.6;">
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:3px;">PROVISION REFERENCE:</div>
+    <div style="font-size:11px;margin-bottom:6px;line-height:1.35;">
       REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
       IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
     </div>
-    <div style="font-size:12px;margin-bottom:16px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:12px;line-height:2;">
+    <div style="font-size:11.5px;margin-bottom:6px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
+    <div style="font-size:11.5px;line-height:1.5;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
       <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
@@ -1891,7 +1972,7 @@ function updateBadge(id,text){
 
 function switchTab(name){
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const panels=['search','qqco','bene','ft','verify','esl'];
+    const panels=['search','verify','qq','co','bene','ft','esl'];
     t.classList.toggle('active',panels[i]===name);
   });
   document.querySelectorAll('.panel').forEach(p=>{
@@ -1900,6 +1981,11 @@ function switchTab(name){
 }
 
 function printDocs(tab){
+  const iv=S.invoiceNo||'DOC';
+  const nameMap={qq:`${iv}_QQ`,co:`${iv}_CO`,bene:`${iv}_BC`,ft:`${iv}_FT`,esl:`${iv}_ESL`};
+  const origTitle=document.title;
+  if(nameMap[tab]) document.title=nameMap[tab];
+  window.addEventListener('afterprint',()=>{document.title=origTitle;},{once:true});
   switchTab(tab);
   setTimeout(()=>window.print(),200);
 }
@@ -1908,6 +1994,12 @@ function printDocs(tab){
    Init
 ══════════════ */
 window.addEventListener('DOMContentLoaded',async()=>{
+  // Restore theme
+  const savedTheme=localStorage.getItem('leenai_theme')||'dark';
+  document.documentElement.dataset.theme=savedTheme;
+  const themeBtn=document.getElementById('themeToggleBtn');
+  if(themeBtn) themeBtn.textContent=savedTheme==='light'?'☀️ ライト':'🌙 ダーク';
+
   await handleCallback();
 });
 </script>
