@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.12</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.13</title>
 <style>
 /* ── Base ── */
 :root {
@@ -208,72 +208,72 @@ input,select{font-family:inherit;}
   background:#fff;color:#000;
   font-family:'Times New Roman',serif;
   padding:26px 32px 30px;max-width:760px;margin:0 auto;
-  font-size:13px;line-height:1.65;
+  font-size:15px;line-height:1.9;
 }
 .cert-hdr-bar{
-  border-bottom:2px solid #000;padding-bottom:9px;margin-bottom:5px;
+  border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:6px;
 }
-.cert-hdr-company{font-weight:700;font-size:13.5px;letter-spacing:.3px;}
-.cert-hdr-addr{font-size:12px;color:#333;}
-.cert-hdr-contact{font-size:12px;color:#333;}
+.cert-hdr-company{font-weight:700;font-size:15.5px;letter-spacing:.3px;}
+.cert-hdr-addr{font-size:13px;color:#333;}
+.cert-hdr-contact{font-size:13px;color:#333;}
 .cert-title{
-  text-align:center;font-size:16px;font-weight:700;
+  text-align:center;font-size:19px;font-weight:700;
   text-decoration:underline;text-transform:uppercase;
-  margin:16px 0 6px;
+  margin:18px 0 8px;
 }
-.cert-meta{text-align:right;font-size:12.5px;margin-bottom:12px;}
-.cert-meta div{margin-bottom:3px;}
-.cert-to-block{margin-bottom:14px;}
-.cert-to-name{font-weight:700;font-size:13.5px;}
-.cert-to-addr{font-size:12.5px;}
+.cert-meta{text-align:right;font-size:14px;margin-bottom:14px;}
+.cert-meta div{margin-bottom:4px;}
+.cert-to-block{margin-bottom:16px;}
+.cert-to-name{font-weight:700;font-size:15.5px;}
+.cert-to-addr{font-size:14px;}
 .cert-confirm-bold{
-  font-weight:700;font-size:13px;margin:12px 0;line-height:1.5;
+  font-weight:700;font-size:15px;margin:14px 0;line-height:1.6;
 }
-.cert-items{margin:10px 0;}
+.cert-items{margin:12px 0;}
 .cert-item{
-  display:flex;margin-bottom:5px;font-size:13px;
+  display:flex;margin-bottom:6px;font-size:15px;
 }
 .cert-bullet{margin-right:6px;flex-shrink:0;}
-.cert-item-label{min-width:178px;font-weight:500;}
+.cert-item-label{min-width:196px;font-weight:500;}
 .cert-item-val{flex:1;}
-.cert-bottom{font-size:12.5px;margin-top:12px;}
+.cert-bottom{font-size:14px;margin-top:14px;}
 .cert-spacer{display:none;}
 .cert-sig-block{text-align:right;margin-top:20px;}
-.cert-sig-company{font-weight:700;font-size:13.5px;}
+.cert-sig-company{font-weight:700;font-size:15.5px;}
 .cert-sig-line{
-  border-bottom:1px solid #000;width:170px;
-  margin:44px 0 4px auto;
+  border-bottom:1px solid #000;width:180px;
+  margin:65px 0 5px auto;
 }
-.cert-sig-name{font-size:13px;}
-.cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:3px;font-size:13px;}
-.cert-party-block{margin-bottom:12px;font-size:13px;}
+.cert-sig-name{font-size:15px;}
+.cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:4px;font-size:15px;}
+.cert-party-block{margin-bottom:14px;font-size:15px;}
 
 /* Bene cert specific */
 .bene-lc-stmt{
-  font-weight:700;font-size:13px;margin:14px 0;line-height:1.6;
+  font-weight:700;font-size:15px;margin:16px 0;line-height:1.7;
 }
-.bene-email-block{margin:12px 0;font-size:13px;}
-.bene-email-line{margin-bottom:3px;}
+.bene-email-block{margin:14px 0;font-size:15px;}
+.bene-email-line{margin-bottom:4px;}
 .bene-email-label{font-weight:700;}
-.bene-table-wrap{margin:10px 0;}
+.bene-table-wrap{margin:12px 0;}
 .bene-tbl{
-  width:100%;border-collapse:collapse;font-size:11.5px;
+  width:100%;border-collapse:collapse;font-size:13px;
 }
 .bene-tbl th{
-  background:#333;color:#fff;padding:4px 7px;
-  text-align:left;font-size:11px;white-space:nowrap;
+  background:#333;color:#fff;padding:5px 8px;
+  text-align:left;font-size:12px;white-space:nowrap;
 }
 .bene-tbl td{
-  padding:4px 7px;border:1px solid #ccc;
+  padding:5px 8px;border:1px solid #ccc;
 }
 .bene-tbl-header td{
-  background:#555;color:#fff;font-weight:700;font-size:11px;
+  background:#555;color:#fff;font-weight:700;font-size:12px;
 }
-.bene-amount-block{font-size:13px;margin:10px 0;line-height:1.7;}
+.bene-amount-block{font-size:15px;margin:12px 0;line-height:1.8;}
 
 /* Free time specific */
 .ft-declare{
-  font-weight:700;font-size:13px;margin:16px 0;line-height:1.6;
+  font-weight:700;font-size:15px;margin:18px 0;line-height:1.7;
 }
 
 /* ── Print ── */
@@ -314,23 +314,23 @@ input,select{font-family:inherit;}
     padding-bottom:14px;
   }
   .esl-spacer{flex:1;}
-  /* ESL署名ラインの余白 */
-  .esl-doc .cert-sig-line{margin-top:16px;}
+  /* ESL署名ライン: 標準と同じ65px */
+  .esl-doc .cert-sig-line{margin-top:65px;}
 }
 
 /* ── ESL Document ── */
 .esl-doc{
   background:#fff;color:#000;
   font-family:'Times New Roman',serif;
-  padding:10px 24px 12px;max-width:760px;margin:0 auto;
-  font-size:11.5px;line-height:1.4;
+  padding:16px 28px 16px;max-width:760px;margin:0 auto;
+  font-size:13px;line-height:1.6;
 }
 .esl-title{
-  text-align:center;font-size:14px;font-weight:700;
-  text-transform:uppercase;margin:6px 0 5px;letter-spacing:.3px;
+  text-align:center;font-size:17px;font-weight:700;
+  text-transform:uppercase;margin:10px 0 8px;letter-spacing:.3px;
 }
-.esl-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:3px 0 7px;}
-.esl-tbl td{border:1px solid #000;padding:2px 6px;vertical-align:middle;}
+.esl-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:5px 0 10px;}
+.esl-tbl td{border:1px solid #000;padding:4px 8px;vertical-align:middle;}
 .esl-label{font-weight:700;width:42%;}
 .esl-spacer{display:none;}
 
@@ -360,7 +360,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.12</span>
+    <span class="hdr-ver" id="header-sub">v1.13</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -526,7 +526,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.12</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.13</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -1893,12 +1893,12 @@ function renderESL(){
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
     <div class="esl-title">Exporter's Statement Letter</div>
-    <div style="font-size:11.5px;margin-bottom:8px;line-height:1.6;">
+    <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
       <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
       <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
     </div>
-    <div style="font-size:11.5px;font-weight:700;margin-bottom:5px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:11px;margin-left:12px;line-height:1.55;margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
+    <div style="font-size:12.5px;margin-left:12px;line-height:1.6;margin-bottom:12px;">
       1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
       &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
       &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
@@ -1907,7 +1907,7 @@ function renderESL(){
       2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
       PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
     </div>
-    <div style="font-size:11.5px;font-weight:700;text-decoration:underline;margin-bottom:4px;">GOODS CONDITION:</div>
+    <div style="font-size:13px;font-weight:700;text-decoration:underline;margin-bottom:5px;">GOODS CONDITION:</div>
     <table class="esl-tbl">
       <tr><td class="esl-label">IMPORTER NAME</td><td>: PT. ASPEX KUMBONG</td></tr>
       <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
@@ -1919,14 +1919,14 @@ function renderESL(){
       <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
       <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
     </table>
-    <div style="font-size:11.5px;font-weight:700;margin-bottom:4px;">PROVISION REFERENCE:</div>
-    <div style="font-size:11px;margin-bottom:8px;line-height:1.5;">
+    <div style="font-size:13px;font-weight:700;margin-bottom:5px;">PROVISION REFERENCE:</div>
+    <div style="font-size:12.5px;margin-bottom:10px;line-height:1.6;">
       REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
       IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
     </div>
-    <div style="font-size:11.5px;margin-bottom:8px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:11.5px;line-height:1.7;">
+    <div style="font-size:13px;margin-bottom:10px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
+    <div style="font-size:13px;line-height:1.8;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
       <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
