@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.11</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.12</title>
 <style>
 /* ── Base ── */
 :root {
@@ -207,72 +207,73 @@ input,select{font-family:inherit;}
 .cert-doc{
   background:#fff;color:#000;
   font-family:'Times New Roman',serif;
-  padding:22px 30px 28px;max-width:760px;margin:0 auto;
-  font-size:12px;line-height:1.5;
+  padding:26px 32px 30px;max-width:760px;margin:0 auto;
+  font-size:13px;line-height:1.65;
 }
 .cert-hdr-bar{
-  border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:4px;
+  border-bottom:2px solid #000;padding-bottom:9px;margin-bottom:5px;
 }
-.cert-hdr-company{font-weight:700;font-size:12.5px;letter-spacing:.3px;}
-.cert-hdr-addr{font-size:11px;color:#333;}
-.cert-hdr-contact{font-size:11px;color:#333;}
+.cert-hdr-company{font-weight:700;font-size:13.5px;letter-spacing:.3px;}
+.cert-hdr-addr{font-size:12px;color:#333;}
+.cert-hdr-contact{font-size:12px;color:#333;}
 .cert-title{
-  text-align:center;font-size:15px;font-weight:700;
+  text-align:center;font-size:16px;font-weight:700;
   text-decoration:underline;text-transform:uppercase;
-  margin:14px 0 4px;
+  margin:16px 0 6px;
 }
-.cert-meta{text-align:right;font-size:11.5px;margin-bottom:10px;}
-.cert-meta div{margin-bottom:2px;}
-.cert-to-block{margin-bottom:12px;}
-.cert-to-name{font-weight:700;font-size:12.5px;}
-.cert-to-addr{font-size:11.5px;}
+.cert-meta{text-align:right;font-size:12.5px;margin-bottom:12px;}
+.cert-meta div{margin-bottom:3px;}
+.cert-to-block{margin-bottom:14px;}
+.cert-to-name{font-weight:700;font-size:13.5px;}
+.cert-to-addr{font-size:12.5px;}
 .cert-confirm-bold{
-  font-weight:700;font-size:12px;margin:10px 0;line-height:1.4;
+  font-weight:700;font-size:13px;margin:12px 0;line-height:1.5;
 }
-.cert-items{margin:8px 0;}
+.cert-items{margin:10px 0;}
 .cert-item{
-  display:flex;margin-bottom:3px;font-size:12px;
+  display:flex;margin-bottom:5px;font-size:13px;
 }
 .cert-bullet{margin-right:6px;flex-shrink:0;}
-.cert-item-label{min-width:168px;font-weight:500;}
+.cert-item-label{min-width:178px;font-weight:500;}
 .cert-item-val{flex:1;}
-.cert-bottom{font-size:11.5px;margin-top:10px;}
-.cert-sig-block{text-align:right;margin-top:28px;}
-.cert-sig-company{font-weight:700;font-size:12.5px;}
+.cert-bottom{font-size:12.5px;margin-top:12px;}
+.cert-spacer{display:none;}
+.cert-sig-block{text-align:right;margin-top:20px;}
+.cert-sig-company{font-weight:700;font-size:13.5px;}
 .cert-sig-line{
-  border-bottom:1px solid #000;width:160px;
-  margin:56px 0 4px auto;
+  border-bottom:1px solid #000;width:170px;
+  margin:44px 0 4px auto;
 }
-.cert-sig-name{font-size:12px;}
-.cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:2px;font-size:12px;}
-.cert-party-block{margin-bottom:10px;font-size:12px;}
+.cert-sig-name{font-size:13px;}
+.cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:3px;font-size:13px;}
+.cert-party-block{margin-bottom:12px;font-size:13px;}
 
 /* Bene cert specific */
 .bene-lc-stmt{
-  font-weight:700;font-size:12px;margin:12px 0;line-height:1.5;
+  font-weight:700;font-size:13px;margin:14px 0;line-height:1.6;
 }
-.bene-email-block{margin:10px 0;font-size:12px;}
-.bene-email-line{margin-bottom:2px;}
+.bene-email-block{margin:12px 0;font-size:13px;}
+.bene-email-line{margin-bottom:3px;}
 .bene-email-label{font-weight:700;}
-.bene-table-wrap{margin:8px 0;}
+.bene-table-wrap{margin:10px 0;}
 .bene-tbl{
-  width:100%;border-collapse:collapse;font-size:10.5px;
+  width:100%;border-collapse:collapse;font-size:11.5px;
 }
 .bene-tbl th{
-  background:#333;color:#fff;padding:3px 6px;
-  text-align:left;font-size:10px;white-space:nowrap;
+  background:#333;color:#fff;padding:4px 7px;
+  text-align:left;font-size:11px;white-space:nowrap;
 }
 .bene-tbl td{
-  padding:3px 6px;border:1px solid #ccc;
+  padding:4px 7px;border:1px solid #ccc;
 }
 .bene-tbl-header td{
-  background:#555;color:#fff;font-weight:700;font-size:10px;
+  background:#555;color:#fff;font-weight:700;font-size:11px;
 }
-.bene-amount-block{font-size:12px;margin:8px 0;line-height:1.6;}
+.bene-amount-block{font-size:13px;margin:10px 0;line-height:1.7;}
 
 /* Free time specific */
 .ft-declare{
-  font-weight:700;font-size:12px;margin:14px 0;line-height:1.5;
+  font-weight:700;font-size:13px;margin:16px 0;line-height:1.6;
 }
 
 /* ── Print ── */
@@ -299,6 +300,13 @@ input,select{font-family:inherit;}
     font-family:'Times New Roman',serif;letter-spacing:.3px;
     background:#fff;
   }
+  /* 全서류: flexで서명을 페이지 하단に固定 */
+  .cert-doc{
+    display:flex;flex-direction:column;
+    min-height:calc(297mm - 12mm - 12mm);
+    padding-bottom:14px;
+  }
+  .cert-spacer{flex:1;}
   /* ESL: 1ページをflex で埋める */
   .esl-doc{
     display:flex;flex-direction:column;
@@ -352,7 +360,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.11</span>
+    <span class="hdr-ver" id="header-sub">v1.12</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -518,7 +526,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.11</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.12</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -1343,6 +1351,7 @@ function renderQQ(){
     <div style="font-weight:700;font-size:12px;">WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED</div>
     <div class="cert-bottom">${poLine}</div>
     ${certBottom()}
+    <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
@@ -1368,6 +1377,7 @@ function renderCO(){
     <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
     <div class="cert-bottom">${poLine}</div>
     ${certBottom()}
+    <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
@@ -1448,6 +1458,7 @@ function renderBeneCert(){
     <div style="font-size:12px;">Thanks,</div>
     <div style="font-size:12px;">Best Regards,</div>
     ${certBottom()}
+    <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
@@ -1499,6 +1510,7 @@ function renderBeneCertAspex(){
     </div>
     <div style="font-size:12px;margin:14px 0 4px;">LC NO : ${lcLine}</div>
     ${importLicNo!=='—'?`<div style="font-size:12px;margin:6px 0;">IMPORT LICENCE NO.${importLicNo}.</div>`:''}
+    <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
@@ -1541,6 +1553,7 @@ function renderFreeTime(){
     <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
     <div class="cert-bottom">${poLine}</div>
     ${certBottom()}
+    <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
