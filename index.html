@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.07</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.08</title>
 <style>
 /* ── Base ── */
 :root {
@@ -277,6 +277,21 @@ input,select{font-family:inherit;}
   .na-panel{display:none!important;}
 }
 
+/* ── ESL Document ── */
+.esl-doc{
+  background:#fff;color:#000;
+  font-family:'Times New Roman',serif;
+  padding:22px 30px 28px;max-width:760px;margin:0 auto;
+  font-size:12px;line-height:1.5;
+}
+.esl-title{
+  text-align:center;font-size:15px;font-weight:700;
+  text-transform:uppercase;margin:16px 0 12px;letter-spacing:.3px;
+}
+.esl-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 14px;}
+.esl-tbl td{border:1px solid #000;padding:4px 8px;vertical-align:middle;}
+.esl-label{font-weight:700;width:42%;}
+
 /* ── Misc ── */
 .divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
 .tag{
@@ -303,7 +318,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span id="importerBadge" style="color:var(--warn)">[—]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.07</span>
+    <span class="hdr-ver" id="header-sub">v1.08</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -325,6 +340,7 @@ input,select{font-family:inherit;}
   <div class="tab" onclick="switchTab('bene')">② Beneficiary Cert<span class="tab-badge" id="b-bene">—</span></div>
   <div class="tab" onclick="switchTab('ft')">③ Free Time Cert<span class="tab-badge" id="b-ft">—</span></div>
   <div class="tab" onclick="switchTab('verify')">🔍 LC 検証<span class="tab-badge" id="b-verify">—</span></div>
+  <div class="tab" id="tab-esl" onclick="switchTab('esl')" style="display:none">④ ESL<span class="tab-badge" id="b-esl">—</span></div>
 </div>
 
 <!-- ═══ MAIN ═══ -->
@@ -436,6 +452,15 @@ input,select{font-family:inherit;}
     </div>
   </div>
 
+  <!-- ══ TAB: ESL ══ -->
+  <div class="panel" id="panel-esl">
+    <div class="doc-actions no-print">
+      <button class="btn btn-success" onclick="printDocs('esl')">🖨 印刷 (1部)</button>
+    </div>
+    <div class="doc-section-title">Exporter's Statement Letter</div>
+    <div class="cert-wrap"><div class="esl-doc" id="doc-esl"></div></div>
+  </div>
+
   <!-- ══ TAB 5: LC Verify ══ -->
   <div class="panel" id="panel-verify">
     <div class="card">
@@ -447,7 +472,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.07</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.08</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -498,6 +523,7 @@ const S = {
   selectedPod: '',
   allText: '',
   poVo: '',
+  voNo: '',
   // v1.3 additions
   graphToken: null,
   graphTokenExpiry: 0,
@@ -766,7 +792,7 @@ async function loadInvoice(){
     const allSiRes=await dvGet(
       `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
       `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification,`+
-               `crcf9_sino,crcf9_all,crcf9_po_vo,`+
+               `crcf9_sino,crcf9_all,crcf9_po_vo,crcf9_vo_no,`+
                `crcf9_place_of_delivery_1,crcf9_place_of_delivery_2,crcf9_place_of_delivery_3`+
       `&$orderby=crcf9_sino asc&$top=4`
     );
@@ -777,6 +803,8 @@ async function loadInvoice(){
     S.allText=allSiList.find(s=>s.crcf9_all)?.crcf9_all||'';
     S.poVo=S.siHeader?.crcf9_po_vo
           ||allSiList.find(s=>s.crcf9_po_vo)?.crcf9_po_vo||'';
+    S.voNo=S.siHeader?.crcf9_vo_no
+          ||allSiList.find(s=>s.crcf9_vo_no)?.crcf9_vo_no||'';
     const podArr=[
       S.siHeader?.crcf9_place_of_delivery_1,
       S.siHeader?.crcf9_place_of_delivery_2,
@@ -1027,8 +1055,10 @@ function buildAll(){
   }
 
   if(S.importer === 'ASPEX'){
-    // ASPEX: Bene Cert のみ生成、Q&Q/CO/FT は N/A
+    // ASPEX: Bene Cert + ESL 生成、Q&Q/CO/FT は N/A
     renderBeneCertAspex();
+    renderESL();
+    showTab('esl');
     renderNAForPanel('qqco-content',
       'ASPEX は Q&amp;Q Certificate / Certificate of Origin 不要 (docs46A に記載なし)');
     renderNAForPanel('ft-content',
@@ -1036,6 +1066,7 @@ function buildAll(){
     updateBadge('b-qqco','N/A');
     updateBadge('b-bene','✓');
     updateBadge('b-ft','N/A');
+    updateBadge('b-esl','✓');
   } else {
     // SAIGON: 既存4種生成
     renderQQ();
@@ -1062,6 +1093,7 @@ function renderNAForPanel(containerId, reason){
 
 /* SAIGON用パネル構造を復元 */
 function restoreSaigonPanels(){
+  hideTab('esl');
   const qqco = document.getElementById('qqco-content');
   if(!qqco.querySelector('#doc-qq')){
     qqco.innerHTML = `
@@ -1312,56 +1344,53 @@ function renderBeneCert(){
 }
 
 /* ══════════
-   Bene Cert ASPEX (v1.07)
+   Bene Cert ASPEX (v1.08 — sample format)
 ══════════ */
 function renderBeneCertAspex(){
   const bk=S.booking;
   const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const lc=getLcNo();
+  const issuanceDate=fmtDateSlash(getEtd(bk));
+  const lcNo=S.siHeader?.cr49f_lc_no||'';
+  const lcDate=S.lcDateEn||'';
+  const lcLine=lcNo?(lcNo+(lcDate?' DATED ON '+lcDate:'')):'—';
   const importLicNo=getAspexImportLicence();
 
   document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
+    ${aspexDocHeader()}
     <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
+    <div style="text-align:right;font-size:12px;margin-bottom:14px;">
+      Date of Issuance : &nbsp;&nbsp;&nbsp;${issuanceDate}
     </div>
-    <br>
-    <div class="bene-lc-stmt">
-      BENEFICIARY'S CERTIFICATE CERTIFYING THAT ONE SET OF SHIPPING DOCUMENTS
-      (ORIGINAL INVOICE, ORIGINAL PACKING LIST, 1/3 SET OF ORIGINAL BILL OF LADING,
-      1 ORIGINAL NON-NEGOTIABLE B/L, INSURANCE POLICY OR CERTIFICATE) SHOULD BE SENT
-      TO PT. ASPEX KUMBONG, ATTN: MARKETING DEPT., WISMA KORINDO 11TH FLOOR,
-      JL. M.T HARYONO KAV-62, JAKARTA SELATAN, INDONESIA BY COURIER.
+    <div style="font-size:12px;margin-bottom:14px;">
+      <div style="font-weight:700;">TO : PT. ASPEX KUMBONG</div>
+      <div>PT. ASPEX KUMBONG,</div>
+      <div>WISMA KORINDO 11TH FLOOR, JL. M.T HARYONO KAV-62, JAKARTA SELATAN, INDONESIA</div>
+      <div>ATTN: MARKETING DEPT</div>
     </div>
-    <div class="cert-items" style="margin-top:12px;">
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">INVOICE NO.</span>
-        <span class="cert-item-val">${invoiceNo}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">B/L NO.</span>
-        <span class="cert-item-val">${blNo}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">L/C NO.</span>
-        <span class="cert-item-val">${lc}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">IMPORT LICENCE NO.</span>
-        <span class="cert-item-val">${importLicNo}</span>
-      </div>
+    <div style="font-size:12px;font-weight:700;margin:16px 0 10px;">
+      We sent you one set of shipping documents for Contents : ${invoiceNo}
     </div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    ${certBottom()}
+    <div style="font-size:12px;margin:0 0 14px;">
+      <table style="border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:top;padding-right:4px;white-space:nowrap;">Contents :</td>
+          <td style="line-height:1.8;">
+            Exporter Statement Letter : 1 ORIGINAL<br>
+            Commercial Invoice : 1 ORIGINAL<br>
+            Packing List : 1 ORIGINAL<br>
+            1/3 set of ORIGINAL Bill of Lading<br>
+            1 Original non negotiable B/L<br>
+            Insurance policy or certificate
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="font-size:12px;font-weight:700;margin:14px 0;">
+      We certify that one set of shipping documents have been sent to Applicant directly
+      by express mail after shipment
+    </div>
+    <div style="font-size:12px;margin:14px 0 4px;">LC NO : ${lcLine}</div>
+    ${importLicNo!=='—'?`<div style="font-size:12px;margin:6px 0;">IMPORT LICENCE NO.${importLicNo}.</div>`:''}
     ${certSig()}`;
 }
 
@@ -1708,6 +1737,111 @@ function fmtDateEn(iso){
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
 }
 
+/* ══════════════════════════════
+   ASPEX共通ヘッダー (no phone/fax)
+══════════════════════════════ */
+function aspexDocHeader(){
+  return `
+    <div class="cert-hdr-bar">
+      <div class="cert-hdr-company">LEENEAR CORPORATION</div>
+      <div class="cert-hdr-addr">VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064</div>
+    </div>`;
+}
+
+/* ══════════════════════════════
+   ESL Rendering (v1.08)
+══════════════════════════════ */
+function renderESL(){
+  const bk=S.booking;
+  const sc=S.saleContract;
+  const contractNo=sc?.cr49f_sale_contract_no||S.poVo||'—';
+  const invoiceNo=bk.cr49f_invoice_no;
+  const pol=bk.crcf9_bl_pol_text||'—';
+  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+' , JAPAN';
+  const issuanceDate=fmtDateSlash(getEtd(bk));
+
+  const rawGoods=getAspexGoodsDesc();
+  while(rawGoods.length<4) rawGoods.push('');
+
+  const goodsTrFirst=`<tr>
+    <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
+    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+  </tr>`;
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
+
+  document.getElementById('doc-esl').innerHTML=`
+    ${aspexDocHeader()}
+    <div class="esl-title">Exporter's Statement Letter</div>
+    <div style="font-size:12px;margin-bottom:12px;line-height:1.9;">
+      <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
+      <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
+    <div style="font-size:11.5px;margin-left:12px;line-height:1.7;margin-bottom:14px;">
+      1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
+      &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
+      &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
+      &nbsp;&nbsp;&nbsp;c. IS NOT CONTAMINATED OF HAZARDOUS &amp; TOXIC AND IS NOT HAZARDOUS &amp; TOXIC WASTE;<br>
+      &nbsp;&nbsp;&nbsp;d. IS HOMOGENEOUS<br>
+      2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
+      PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
+    </div>
+    <div style="font-size:12px;font-weight:700;text-decoration:underline;margin-bottom:4px;">GOODS CONDITION:</div>
+    <table class="esl-tbl">
+      <tr><td class="esl-label">IMPORTER NAME</td><td>: PT. ASPEX KUMBONG</td></tr>
+      <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
+      <tr><td class="esl-label">MODE OF TRANSPORTATION</td><td>: OCEAN SHIPPING</td></tr>
+      ${goodsTrFirst}${goodsTrRest}
+      <tr><td class="esl-label">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
+      <tr><td class="esl-label">WEIGHT (TNE)</td><td>: ${S.totalNwMt.toFixed(2)}MT</td></tr>
+      <tr><td class="esl-label">NUMBER OF CONTAINER</td><td>: ${S.containerCount} Containers</td></tr>
+      <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
+      <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
+    </table>
+    <div style="font-size:12px;font-weight:700;margin-bottom:4px;">PROVISION REFERENCE:</div>
+    <div style="font-size:11.5px;margin-bottom:14px;line-height:1.6;">
+      REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
+      IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
+      OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
+    </div>
+    <div style="font-size:12px;margin-bottom:16px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
+    <div style="font-size:12px;line-height:2;">
+      <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
+      <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
+      <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PARK</div>
+      <div>TITLE : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAFF</div>
+    </div>
+    ${certSig()}`;
+}
+
+function getAspexGoodsDesc(){
+  const text=(S.lcJson?.commodity45A||S.siDetail?.crcf9_productname||'').toUpperCase();
+  const rows=[];
+  if(text.includes('ONP')) rows.push('WASTE PAPER FOR NEWSPRINT MANUFACTURING (ONP)');
+  if(text.includes('OMG')) rows.push('WASTE PAPER FOR NEWSPRINT MANUFACTURING (OMG)');
+  if(text.includes('SOP')||text.includes('SHREDDED')) rows.push('WASTE PAPER FOR PACKAGING MANUFACTURING (SOP)');
+  if(text.includes('BBC')) rows.push('WASTE PAPER FOR PACKAGING MANUFACTURING (BBC)');
+  if(rows.length===0) rows.push(S.siDetail?.crcf9_productname||'WASTE PAPER');
+  return rows;
+}
+
+function fmtDateSlash(iso){
+  if(!iso) return '—';
+  const d=new Date(iso);
+  if(isNaN(d)) return iso;
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function showTab(name){
+  const el=document.getElementById('tab-'+name);
+  if(el) el.style.display='';
+}
+
+function hideTab(name){
+  const el=document.getElementById('tab-'+name);
+  if(el) el.style.display='none';
+}
+
 /* ══════════════
    UI Helpers
 ══════════════ */
@@ -1725,7 +1859,7 @@ function updateBadge(id,text){
 
 function switchTab(name){
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const panels=['search','qqco','bene','ft','verify'];
+    const panels=['search','qqco','bene','ft','verify','esl'];
     t.classList.toggle('active',panels[i]===name);
   });
   document.querySelectorAll('.panel').forEach(p=>{
