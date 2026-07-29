@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.08</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.09</title>
 <style>
 /* ── Base ── */
 :root {
@@ -225,7 +225,7 @@ input,select{font-family:inherit;}
 .cert-sig-company{font-weight:700;font-size:12.5px;}
 .cert-sig-line{
   border-bottom:1px solid #000;width:160px;
-  margin:24px 0 2px auto;
+  margin:56px 0 4px auto;
 }
 .cert-sig-name{font-size:12px;}
 .cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:2px;font-size:12px;}
@@ -318,7 +318,7 @@ input,select{font-family:inherit;}
     <span class="hdr-title">✦ CERTIFICATE TOOL <span id="importerBadge" style="color:var(--warn)">[—]</span></span>
   </div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.08</span>
+    <span class="hdr-ver" id="header-sub">v1.09</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -472,7 +472,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.08</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.09</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -489,6 +489,14 @@ const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation o
 const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
 const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
 const SP_DRIVE_ID  = 'b!ZK58_9YllU-vETQD3Xz0TbOInXbVCXJHnQ2280KJBArFLeM_18EgRbSeoO-TW__U';
+
+/* v1.09: 서명권자 이메일 → 서명란 이름 매핑 */
+const SIGNER_MAP = {
+  'kx_zhan@leenearcorp.com': 'KAIXIN ZHAN',
+  'm_oba@leenearcorp.com':   'OBA',
+  'ja_lee@leenearcorp.com':  'JUAH LEE',
+  'sw_park@leenearcorp.com': 'PARK',
+};
 
 /* ── State ── */
 const S = {
@@ -524,6 +532,8 @@ const S = {
   allText: '',
   poVo: '',
   voNo: '',
+  siDetailList: [],       // v1.09: S/I Detail 전건 (품목별 productname 취득용)
+  signerName: 'PARK',     // v1.09: 로그인 이메일 기반 자동 결정, DEFAULT = PARK
   // v1.3 additions
   graphToken: null,
   graphTokenExpiry: 0,
@@ -582,8 +592,10 @@ function restoreDvSession(){
   const token=sessionStorage.getItem('dv_token');
   const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
   const user=sessionStorage.getItem('dv_user')||'';
+  const signer=sessionStorage.getItem('dv_signer')||'PARK';
   if(token && expiry>Date.now()){
     S.token=token; S.tokenExpiry=expiry; S.userName=user;
+    S.signerName=signer;
     setConnected(true);
   }else{
     setConnected(false);
@@ -638,11 +650,15 @@ async function handleCallback(){
       try{
         const pl=JSON.parse(atob(data.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
         S.userName=pl.name||pl.preferred_username||'';
+        // v1.09: 서명권자 자동 결정
+        const email=(pl.preferred_username||pl.email||'').toLowerCase();
+        S.signerName=SIGNER_MAP[email]||'PARK';
       }catch(e){}
     }
     sessionStorage.setItem('dv_token',S.token);
     sessionStorage.setItem('dv_expiry',String(S.tokenExpiry));
     sessionStorage.setItem('dv_user',S.userName);
+    sessionStorage.setItem('dv_signer',S.signerName);
     await startGraphAuth();
   }catch(e){
     showStatus('loadStatus','err','認証エラー: '+e.message);
@@ -758,7 +774,7 @@ async function loadInvoice(){
     const ctRes=await dvGet(
       `crcf9_container_informations?$filter=_crcf9_booking_id_value eq ${bookingId}`+
       `&$select=crcf9_container_informationid,crcf9_n_w,crcf9_quantity,`+
-               `crcf9_container_no,crcf9_seal_no,crcf9_type&$top=50`
+               `crcf9_container_no,crcf9_seal_no,crcf9_type,_crcf9_sale_detail_id_value&$top=50`
     );
     S.containers=ctRes.value||[];
     S.totalNwMt=S.containers.reduce((a,c)=>a+(c.crcf9_n_w||0),0)/1000;
@@ -817,9 +833,10 @@ async function loadInvoice(){
     if(S.siHeader){
       const detRes=await dvGet(
         `crcf9_s_i_details?$filter=_crcf9_s_i_id_value eq ${S.siHeader.cr49f_s_iid}`+
-        `&$select=crcf9_productname&$top=1`
+        `&$select=crcf9_productname,_crcf9_sale_detail_id_value&$top=10`
       );
-      S.siDetail=detRes.value&&detRes.value.length>0?detRes.value[0]:null;
+      S.siDetailList=detRes.value||[];
+      S.siDetail=S.siDetailList.length>0?S.siDetailList[0]:null;
     }
 
     showStatus('loadStatus','ok',`✅ "${iv}" のデータを取得しました。`);
@@ -1183,7 +1200,7 @@ function certSig(){
     <div class="cert-sig-block">
       <div class="cert-sig-company">LEENEAR CORPORATION</div>
       <div class="cert-sig-line"></div>
-      <div class="cert-sig-name">OBA</div>
+      <div class="cert-sig-name">${S.signerName}</div>
     </div>`;
 }
 
@@ -1808,13 +1825,28 @@ function renderESL(){
     <div style="font-size:12px;line-height:2;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
-      <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PARK</div>
+      <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
       <div>TITLE : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAFF</div>
     </div>
     ${certSig()}`;
 }
 
 function getAspexGoodsDesc(){
+  // v1.09: COMPASS siDetailList × container join → 실제 선적 품목만
+  if(S.siDetailList && S.siDetailList.length>0){
+    const shippedIds=new Set(
+      S.containers.map(c=>c['_crcf9_sale_detail_id_value']).filter(Boolean)
+    );
+    if(shippedIds.size>0){
+      const shipped=S.siDetailList.filter(d=>shippedIds.has(d['_crcf9_sale_detail_id_value']));
+      const names=shipped.map(d=>d.crcf9_productname).filter(Boolean);
+      if(names.length>0) return names;
+    }
+    // 조인 불가 시 전건 반환
+    const allNames=S.siDetailList.map(d=>d.crcf9_productname).filter(Boolean);
+    if(allNames.length>0) return allNames;
+  }
+  // LC JSON 키워드 fallback
   const text=(S.lcJson?.commodity45A||S.siDetail?.crcf9_productname||'').toUpperCase();
   const rows=[];
   if(text.includes('ONP')) rows.push('WASTE PAPER FOR NEWSPRINT MANUFACTURING (ONP)');
