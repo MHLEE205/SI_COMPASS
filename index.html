@@ -705,7 +705,7 @@ async function handleCallback(){
     S.tokenExpiry=Date.now()+(data.expires_in-60)*1000;
     if(data.id_token){
       try{
-        const pl=JSON.parse(atob(data.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        const pl=JSON.parse(new TextDecoder('utf-8').decode(Uint8Array.from(atob(data.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))));
         S.userName=pl.name||pl.preferred_username||'';
         // v1.09: 서명권자 자동 결정
         const email=(pl.preferred_username||pl.email||'').toLowerCase();
