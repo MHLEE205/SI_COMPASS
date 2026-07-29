@@ -876,8 +876,13 @@ async function loadInvoice(){
     S.containerCount=S.containers.length;
 
     if(!scGuid){
-      showStatus('loadStatus','warn','販売契約リンクが見つかりません。部分的なデータのみ表示します。');
+      showStatus('loadStatus','warn','⚠ 販売契約リンクが見つかりません。ESL・서류生成は可能です（一部項目は空欄）。');
       renderDataCard();
+      renderContainerTable();
+      renderPodSelector();
+      document.getElementById('lcCard').style.display='';
+      document.getElementById('goPanel').style.display='';
+      autoLoadLcJson();
       return;
     }
 
