@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.23</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.24</title>
 <style>
 /* ── Base ── */
 :root {
@@ -333,7 +333,7 @@ input,select{font-family:inherit;}
   text-transform:uppercase;margin:10px 0 8px;letter-spacing:.3px;
 }
 .esl-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:5px 0 10px;}
-.esl-tbl td{border:1px solid #000;padding:4px 8px;vertical-align:middle;}
+.esl-tbl td{border:1px solid #000;padding:2px 6px;vertical-align:middle;}
 .esl-label{font-weight:700;width:42%;}
 .esl-spacer{display:none;}
 
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.23</span>
+    <span class="hdr-ver" id="header-sub">v1.24</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -539,7 +539,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.23</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.24</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -840,6 +840,22 @@ function updateTabHighlights(){
         const el=document.getElementById('tab-'+id);
         if(el) el.classList.add('na');
       });
+    } else if(S.importer==='GENERIC'){
+      const allDocTabs=['qq','co','bene','ft','esl','mail'];
+      allDocTabs.forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.remove('needed','na');
+      });
+      ['co','qq'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('needed');
+      });
+      ['bene','ft','mail'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('na');
+      });
+      const eslEl=document.getElementById('tab-esl');
+      if(eslEl) eslEl.classList.add(isIndonesiaDest()?'needed':'na');
     }
   }
 }
@@ -892,6 +908,7 @@ async function dvGet(path){
 ══════════════ */
 function detectImporter(ivNo){
   const up=ivNo.toUpperCase();
+  if(up.startsWith('NSG')) return 'SAIGON';
   if(up.startsWith('NA'))  return 'ASPEX';
   if(up.startsWith('NMG')) return 'MEGA_SURYA';
   if(up.startsWith('NKC')) return 'TKC_KRAFT';
@@ -900,7 +917,12 @@ function detectImporter(ivNo){
   if(up.startsWith('NTQ')) return 'TAN_QUANG';
   if(up.startsWith('NVD')) return 'VAN_DIEM';
   if(up.startsWith('NXM')) return 'XUAN_MAI';
-  return 'SAIGON';
+  return 'GENERIC'; // 未登録業者
+}
+
+function isIndonesiaDest(){
+  const dest=(S.portOfDischarge||S.selectedPod||'').toUpperCase();
+  return dest.includes('INDONESIA')||dest.includes('JAKARTA')||dest.includes('SURABAYA')||dest.includes('PRIOK');
 }
 
 /* ══════════════
@@ -1354,6 +1376,29 @@ function buildAll(){
     updateBadge('b-ft','N/A');
     hideTab('esl');
     updateBadge('b-esl','—');
+  } else if(S.importer==='GENERIC'){
+    // 未登録業者: COO + Q&Q (+ インドネシア向けはESL)
+    const badge=document.getElementById('importerBadge');
+    badge.textContent='[---]';
+    badge.style.color='var(--muted)';
+    renderCOOMegaSurya();
+    renderQQGeneric();
+    updateBadge('b-co','✓');
+    updateBadge('b-qq','✓');
+    if(isIndonesiaDest()){
+      renderESLMegaSurya();
+      showTab('esl');
+      updateBadge('b-esl','✓');
+    } else {
+      hideTab('esl');
+      updateBadge('b-esl','—');
+    }
+    renderNAForPanel('bene-content','未登録業者 — Beneficiary Certificate 不要');
+    renderNAForPanel('ft-content','未登録業者 — Free Time Certificate 不要');
+    updateBadge('b-bene','N/A');
+    updateBadge('b-ft','N/A');
+    hideTab('mail');
+    updateBadge('b-mail','—');
   } else {
     // SAIGON: 既存4種生成
     renderQQ();
@@ -2074,9 +2119,9 @@ function renderESL(){
 
   const goodsTrFirst=`<tr>
     <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td style="height:22px;">${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
   </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td style="height:22px;">${r?': '+r:''}</td></tr>`).join('');
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
 
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
@@ -2086,7 +2131,7 @@ function renderESL(){
       <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
     </div>
     <div style="font-size:13px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:12.5px;margin-left:12px;line-height:1.6;margin-bottom:12px;">
+    <div style="font-size:12.5px;margin-left:12px;margin-bottom:10px;">
       1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
       &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
       &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
@@ -2108,7 +2153,7 @@ function renderESL(){
       <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
     </table>
     <div style="font-size:13px;font-weight:700;margin-bottom:5px;">PROVISION REFERENCE:</div>
-    <div style="font-size:12.5px;margin-bottom:10px;line-height:1.6;">
+    <div style="font-size:12.5px;margin-bottom:8px;">
       REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
       IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
@@ -2433,9 +2478,9 @@ function renderESLMegaSurya(){
 
   const goodsTrFirst=`<tr>
     <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td style="height:22px;">${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
   </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td style="height:22px;">${r?': '+r:''}</td></tr>`).join('');
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
 
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
@@ -2445,7 +2490,7 @@ function renderESLMegaSurya(){
       <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
     </div>
     <div style="font-size:13px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:12.5px;margin-left:12px;line-height:1.6;margin-bottom:12px;">
+    <div style="font-size:12.5px;margin-left:12px;margin-bottom:10px;">
       1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
       &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
       &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
@@ -2467,7 +2512,7 @@ function renderESLMegaSurya(){
       <tr><td class="esl-label">PORT OF DESTINATION</td><td>: ${portOfDest}</td></tr>
     </table>
     <div style="font-size:13px;font-weight:700;margin-bottom:5px;">PROVISION REFERENCE:</div>
-    <div style="font-size:12.5px;margin-bottom:10px;line-height:1.6;">
+    <div style="font-size:12.5px;margin-bottom:8px;">
       REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
       IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
@@ -2484,7 +2529,7 @@ function renderESLMegaSurya(){
 }
 
 /* ══════════════════════════════════════
-   v1.23: Certificate of Quality and Quantity (Vietnam 業者共用)
+   v1.24: Certificate of Quality and Quantity (Vietnam 業者共用)
 ══════════════════════════════════════ */
 function renderQQGeneric(){
   const bk=S.booking;
@@ -2556,7 +2601,7 @@ function renderQQGeneric(){
 }
 
 /* ══════════════════════════════════════
-   v1.23: Beneficiary's Certificate (DONG TIEN)
+   v1.24: Beneficiary's Certificate (DONG TIEN)
 ══════════════════════════════════════ */
 function renderBeneCertDT(){
   const bk=S.booking;
@@ -2634,7 +2679,7 @@ function renderBeneCertDT(){
 }
 
 /* ══════════════════════════════════════
-   v1.23: Beneficiary's Certificate Simple (VAN DIEM / XUAN MAI)
+   v1.24: Beneficiary's Certificate Simple (VAN DIEM / XUAN MAI)
 ══════════════════════════════════════ */
 function renderBeneCertSimple(){
   const bk=S.booking;
@@ -2680,7 +2725,7 @@ function renderBeneCertSimple(){
 }
 
 /* ══════════════════════════════════════
-   v1.23: Copy of Mail (TAN QUANG 専用)
+   v1.24: Copy of Mail (TAN QUANG 専用)
 ══════════════════════════════════════ */
 function renderCopyOfMail(){
   const bk=S.booking;
