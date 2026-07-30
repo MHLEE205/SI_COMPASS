@@ -1046,10 +1046,14 @@ async function loadInvoice(){
           );
           for(const d of detRes.value||[]){
             const sid=d['_crcf9_sale_detail_id_value'];
+            d._si_po_vo=si.crcf9_po_vo||'';
             if(!seenIds.has(sid)){
               seenIds.add(sid);
-              d._si_po_vo=si.crcf9_po_vo||''; // 실제 선적 품목 필터링용: 부모 S/I의 PO 첨부
               allDetails.push(d);
+            } else if(d.crcf9_productname){
+              // 同じsale_detail_idで後のS/Iにproductnameがあれば上書き（sino順）
+              const idx=allDetails.findIndex(x=>x['_crcf9_sale_detail_id_value']===sid);
+              if(idx>=0 && !allDetails[idx].crcf9_productname) allDetails[idx]=d;
             }
           }
         }catch(e){ /* 該当 S/I の detail 取得失敗は無視 */ }
