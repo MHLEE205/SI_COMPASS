@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.21</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.22</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.21</span>
+    <span class="hdr-ver" id="header-sub">v1.22</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -529,7 +529,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.21</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.22</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -596,7 +596,7 @@ const S = {
   graphTokenExpiry: 0,
   // v1.07: multi-importer
   importer: 'SAIGON',   // 'SAIGON' | 'ASPEX' | 'MEGA_SURYA'
-  // v1.21: MEGA_SURYA additions
+  // v1.22: MEGA_SURYA additions
   allSiList: [],
   importerName: '',
   importerAddr: '',
@@ -952,7 +952,7 @@ async function loadInvoice(){
     ].filter(Boolean);
     S.podList=podArr;
     S.selectedPod=podArr.length>0?podArr[0]:'';
-    // v1.21: MEGA_SURYA 用 importer 情報
+    // v1.22: MEGA_SURYA 用 importer 情報
     S.importerName=parseNotifyParty(S.siHeader?.crcf9_notify_party||'');
     S.importerAddr=parseAddress(S.siHeader?.crcf9_address||'');
     S.importerTel=S.siHeader?.crcf9_tel||'';
@@ -961,7 +961,7 @@ async function loadInvoice(){
     S.invoiceText1=S.siHeader?.crcf9_invoice_text1||'';
     S.beneCertText=S.siHeader?.crcf9_bencert_text||'';
 
-    /* Step 6: S/I Detail (v1.21: allSiList 全件・hs_code 取得、中複排除) */
+    /* Step 6: S/I Detail (v1.22: allSiList 全件・hs_code 取得、中複排除) */
     {
       const seenIds=new Set();
       const allDetails=[];
@@ -2053,7 +2053,7 @@ function fmtDateSlash(iso){
 }
 
 /* ══════════════════════════════════════
-   v1.21: MEGA_SURYA ヘルパー関数
+   v1.22: MEGA_SURYA ヘルパー関数
 ══════════════════════════════════════ */
 function parseNotifyParty(val){
   if(!val) return '';
@@ -2099,7 +2099,7 @@ function getShippedDetails(){
 }
 
 /* ══════════════════════════════════════
-   v1.21: Beneficiary's Certificate (MEGA SURYA)
+   v1.22: Beneficiary's Certificate (MEGA SURYA)
 ══════════════════════════════════════ */
 function renderBeneCertMegaSurya(){
   const bk=S.booking;
@@ -2189,7 +2189,7 @@ function renderBeneCertMegaSurya(){
 }
 
 /* ══════════════════════════════════════
-   v1.21: Certificate of Origin (MEGA SURYA)
+   v1.22: Certificate of Origin (MEGA SURYA)
 ══════════════════════════════════════ */
 function renderCOOMegaSurya(){
   const bk=S.booking;
@@ -2301,16 +2301,17 @@ function renderCOOMegaSurya(){
     </div>
     <br>
     <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    ${allBlock}
-    ${poLines?`<div class="cert-bottom">${poLines}</div>`:''}
-    ${S.voNo?`<div class="cert-bottom">VO NUMBER: ${S.voNo}</div>`:''}
-    ${hsLines?`<div class="cert-bottom">${hsLines}</div>`:''}
+    ${S.allText ? allBlock : [
+      poLines?`<div class="cert-bottom">${poLines}</div>`:'',
+      S.voNo?`<div class="cert-bottom">VO NUMBER: ${S.voNo}</div>`:'',
+      hsLines?`<div class="cert-bottom">${hsLines}</div>`:''
+    ].join('')}
     <div class="cert-spacer"></div>
     ${certSig()}`;
 }
 
 /* ══════════════════════════════════════
-   v1.21: ESL (MEGA SURYA) — ASPEX ESL 構造を流用
+   v1.22: ESL (MEGA SURYA) — ASPEX ESL 構造を流用
 ══════════════════════════════════════ */
 function renderESLMegaSurya(){
   const bk=S.booking;
