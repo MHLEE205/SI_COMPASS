@@ -830,16 +830,6 @@ function updateTabHighlights(){
       ['ft','esl'].forEach(id=>{
         document.getElementById('tab-'+id)?.classList.add('na');
       });
-    } else {
-      // SAIGON: qq + co + bene + ft 必要 / esl 不要
-      ['qq','co','bene','ft'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('needed');
-      });
-      ['esl','mail'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('na');
-      });
     } else if(S.importer==='GENERIC'){
       const allDocTabs=['qq','co','bene','ft','esl','mail'];
       allDocTabs.forEach(id=>{
@@ -856,6 +846,16 @@ function updateTabHighlights(){
       });
       const eslEl=document.getElementById('tab-esl');
       if(eslEl) eslEl.classList.add(isIndonesiaDest()?'needed':'na');
+    } else {
+      // SAIGON: qq + co + bene + ft 必要 / esl 不要
+      ['qq','co','bene','ft'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('needed');
+      });
+      ['esl','mail'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('na');
+      });
     }
   }
 }
