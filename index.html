@@ -2739,14 +2739,21 @@ function renderCopyOfMail(){
   const bk=S.booking;
   const invoiceNo=bk.cr49f_invoice_no;
   const issuanceDate=fmtDateEn(getEtd(bk));
+  const etdStr=fmtDateEn(getEtd(bk));
+  const etaStr=fmtDateEn(getEta(bk));
   const blNo=bk.cr49f_bl_number||'—';
   const blDate=fmtDateEn(getEtd(bk));
+  const vessel=bk.cr49f_main_ship_name||'—';
+  const carrier=S.carrierName||'—';
   const lc=getLcNo();
-  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
+  const productLines=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))];
+  const product=productLines.join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
+  const productPlain=productLines.join(', ')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
   const pol=bk.crcf9_bl_pol_text||'—';
   const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
   const portOfDest=getPortOfDestination();
   const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
+  const toEmail=S.importerEmail||'';
 
   const declare=S.beneCertText||
     '01 COPY OF FAX OR EMAIL ADVISING APPLICANT OF PARTICULARS OF SHIPMENT: VESSEL NAME, VOYAGE NO., B/L DATE, B/L NO., DESCRIPTION OF GOODS SHIPPED, L/C NO., INVOICE VALUE, PORT OF LOADING, PORT OF DISCHARGE, ETD, ETA, APPLICANT\'S NAME WITHIN 07 DAYS AFTER SHIPMENT DATE.';
@@ -2763,7 +2770,40 @@ function renderCopyOfMail(){
       <div>${S.importerAddr||''}</div>
     </div>
     <br>
-    <div style="font-size:13px;line-height:1.6;margin-bottom:14px;">${declare}</div>
+    <div style="font-size:13px;line-height:1.6;margin-bottom:10px;">${declare}</div>
+
+    <!-- ── Email simulation box ── -->
+    <div style="border:1px solid #888;padding:8px 10px;margin-bottom:10px;font-size:11px;line-height:1.5;background:#fafafa;">
+      <div><span style="font-weight:700;">From:</span> &nbsp;rcp@leenearcorp.com &nbsp;&nbsp;
+           <span style="font-weight:700;">To:</span> &nbsp;${toEmail||S.importerName||'—'}</div>
+      <div><span style="font-weight:700;">Subject:</span> &nbsp;Shipping docs for ${invoiceNo} ${productPlain}</div>
+      <br>
+      <div style="margin-bottom:4px;">Dear ALL,</div>
+      <div style="margin-bottom:6px;">Please confirm the following shipment details of NV ${invoiceNo} :</div>
+      <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
+        <tr style="background:#333;color:#fff;">
+          <th style="padding:2px 4px;text-align:left;">ETD</th>
+          <th style="padding:2px 4px;text-align:left;">ETA</th>
+          <th style="padding:2px 4px;text-align:left;">Invoice NO</th>
+          <th style="padding:2px 4px;text-align:left;">Carrier</th>
+          <th style="padding:2px 4px;text-align:left;">NAME OF VESSEL</th>
+          <th style="padding:2px 4px;text-align:left;">B/L No. &amp; DATE</th>
+          <th style="padding:2px 4px;text-align:right;">MT</th>
+        </tr>
+        <tr style="background:#ffffcc;">
+          <td style="padding:2px 4px;border:1px solid #ccc;">${etdStr}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;">${etaStr}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;">${invoiceNo}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;">${carrier}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;">${vessel}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;">${blNo} ${blDate}</td>
+          <td style="padding:2px 4px;border:1px solid #ccc;text-align:right;">${S.totalNwMt.toFixed(2)}</td>
+        </tr>
+      </table>
+      <br>
+      <div style="font-weight:700;">✦ LEENEAR CORPORATION &nbsp;|&nbsp; rcp@leenearcorp.com &nbsp;|&nbsp; TEL: +81-3-3528-9850</div>
+    </div>
+
     <div class="cert-items">
       <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label" style="min-width:230px;">DESCRIPTION OF GOODS SHIPPED</span><span class="cert-item-val">${product}</span></div>
       <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">LC NO.</span><span class="cert-item-val">${lc}</span></div>
