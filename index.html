@@ -2004,7 +2004,8 @@ function getLcNo(){
   const lcNo=S.siHeader?.cr49f_lc_no||'';
   const lcDate=S.lcDateEn||S.lcJson?.lcDate||'';
   if(!lcNo) return '—';
-  if(!lcDate) return lcNo;
+  // lcNoに既に日付が含まれている場合は重複して追加しない
+  if(!lcDate||lcNo.toUpperCase().includes('DATED')) return lcNo;
   return `${lcNo} DATED ON ${lcDate}`;
 }
 
@@ -2218,7 +2219,10 @@ function parseNotifyParty(val){
 
 function parseAddress(val){
   if(!val) return '';
-  return val.replace(/^#+/,'').replace(/^ADD\.?\s*:\s*/i,'').replace(/\*+$/,'').trim();
+  let v=val.replace(/^#+/,'').trim();  // 先頭の#を除去
+  v=v.split('#')[0].trim();             // #以降(TEL/FAX等)を除去
+  v=v.replace(/[\s*]+$/,'').trim();    // 末尾の空白・*を除去
+  return v;
 }
 
 function parseHsCode(val){
@@ -2761,7 +2765,7 @@ function renderCopyOfMail(){
     <br>
     <div style="font-size:13px;line-height:1.6;margin-bottom:14px;">${declare}</div>
     <div class="cert-items">
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">DESCRIPTION OF GOODS SHIPPED</span><span class="cert-item-val">${product}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label" style="min-width:230px;">DESCRIPTION OF GOODS SHIPPED</span><span class="cert-item-val">${product}</span></div>
       <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">LC NO.</span><span class="cert-item-val">${lc}</span></div>
       <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L DATE</span><span class="cert-item-val">${blDate}</span></div>
       <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L NO.</span><span class="cert-item-val">${blNo}</span></div>
