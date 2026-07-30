@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.22</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.23</title>
 <style>
 /* ── Base ── */
 :root {
@@ -13,7 +13,7 @@
   --muted:#8892a4; --muted2:#4a5568;
   --accent:#4f8ef7; --accent2:#3fb950;
   --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
-  --purple:#a371f7; --radius:10px;
+  --purple:#a371f7; --info:#38bdf8; --radius:10px;
 }
 [data-theme="light"] {
   --bg:#f4f6fb; --surface:#ffffff; --surface2:#f0f4ff; --surface3:#e8edf7;
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.22</span>
+    <span class="hdr-ver" id="header-sub">v1.23</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -388,6 +388,7 @@ input,select{font-family:inherit;}
   <div class="tab" id="tab-bene" onclick="switchTab('bene')">③ Beneficiary Cert<span class="tab-badge" id="b-bene">—</span></div>
   <div class="tab" id="tab-ft" onclick="switchTab('ft')">④ Free Time Cert<span class="tab-badge" id="b-ft">—</span></div>
   <div class="tab" id="tab-esl" onclick="switchTab('esl')" style="display:none">⑤ ESL<span class="tab-badge" id="b-esl">—</span></div>
+  <div class="tab" id="tab-mail" onclick="switchTab('mail')" style="display:none">📧 COPY OF MAIL<span class="tab-badge" id="b-mail">—</span></div>
 </div>
 
 <!-- ═══ MAIN ═══ -->
@@ -518,6 +519,15 @@ input,select{font-family:inherit;}
     <div class="cert-wrap"><div class="esl-doc" id="doc-esl"></div></div>
   </div>
 
+  <!-- ══ TAB: COPY OF MAIL ══ -->
+  <div class="panel" id="panel-mail">
+    <div class="doc-actions no-print">
+      <button class="btn btn-success" onclick="printDocs('mail')">🖨 印刷 (1部)</button>
+    </div>
+    <div class="doc-section-title">Copy of Mail</div>
+    <div class="cert-wrap"><div class="cert-doc" id="doc-mail"></div></div>
+  </div>
+
   <!-- ══ TAB 5: LC Verify ══ -->
   <div class="panel" id="panel-verify">
     <div class="card">
@@ -529,7 +539,7 @@ input,select{font-family:inherit;}
 
 </div><!-- /main -->
 
-<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.22</div>
+<div class="powered">✦ Powered by LEENAI Automation System &nbsp;|&nbsp; SYS-D-04 v1.23</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -605,6 +615,7 @@ const S = {
   portOfDischarge: '',
   invoiceText1: '',
   beneCertText: '',
+  importerEmail: '',
 };
 
 /* ══════════════
@@ -760,7 +771,7 @@ function doLogout(){
 }
 
 function updateTabHighlights(){
-  const docTabs=['qq','co','bene','ft','esl'];
+  const docTabs=['qq','co','bene','ft','esl','mail'];
   // 一旦全部リセット
   docTabs.forEach(id=>{
     const el=document.getElementById('tab-'+id);
@@ -772,7 +783,7 @@ function updateTabHighlights(){
       const el=document.getElementById('tab-'+id);
       if(el) el.classList.add('needed');
     });
-    ['qq','co','ft'].forEach(id=>{
+    ['qq','co','ft','mail'].forEach(id=>{
       const el=document.getElementById('tab-'+id);
       if(el) el.classList.add('na');
     });
@@ -782,18 +793,54 @@ function updateTabHighlights(){
       const el=document.getElementById('tab-'+id);
       if(el) el.classList.add('needed');
     });
-    ['qq','ft'].forEach(id=>{
+    ['qq','ft','mail'].forEach(id=>{
       const el=document.getElementById('tab-'+id);
       if(el) el.classList.add('na');
     });
   } else {
-    // SAIGON: qq + co + bene + ft 必要 / esl 不要
-    ['qq','co','bene','ft'].forEach(id=>{
-      const el=document.getElementById('tab-'+id);
-      if(el) el.classList.add('needed');
-    });
-    const eslEl=document.getElementById('tab-esl');
-    if(eslEl) eslEl.classList.add('na');
+    const VIETNAM_IMPORTERS=['TKC_KRAFT','DONG_TIEN','NEW_TOYO','TAN_QUANG','VAN_DIEM','XUAN_MAI'];
+    if(VIETNAM_IMPORTERS.includes(S.importer)){
+      // ベトナム業者: 基本 co=needed, qq=needed (TKC_KRAFT除く), ft/esl/mail=na
+      const docTabsVN=['qq','co','bene','ft','esl','mail'];
+      docTabsVN.forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.remove('needed','na');
+      });
+      // COO は常に needed
+      document.getElementById('tab-co')?.classList.add('needed');
+      // Q&Q: TKC_KRAFT 除く
+      if(S.importer !== 'TKC_KRAFT'){
+        document.getElementById('tab-qq')?.classList.add('needed');
+      } else {
+        document.getElementById('tab-qq')?.classList.add('na');
+      }
+      // Bene Cert: DT/VD/XM
+      if(['DONG_TIEN','VAN_DIEM','XUAN_MAI'].includes(S.importer)){
+        document.getElementById('tab-bene')?.classList.add('needed');
+      } else {
+        document.getElementById('tab-bene')?.classList.add('na');
+      }
+      // COPY OF MAIL: TAN_QUANG のみ
+      if(S.importer === 'TAN_QUANG'){
+        document.getElementById('tab-mail')?.classList.add('needed');
+      } else {
+        document.getElementById('tab-mail')?.classList.add('na');
+      }
+      // ft/esl: 常に na
+      ['ft','esl'].forEach(id=>{
+        document.getElementById('tab-'+id)?.classList.add('na');
+      });
+    } else {
+      // SAIGON: qq + co + bene + ft 必要 / esl 不要
+      ['qq','co','bene','ft'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('needed');
+      });
+      ['esl','mail'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('na');
+      });
+    }
   }
 }
 
@@ -844,12 +891,15 @@ async function dvGet(path){
    Importer Detection (v1.07)
 ══════════════ */
 function detectImporter(ivNo){
-  // NA prefix = ASPEX (例: NA2607-01)
-  // NMG prefix = MEGA_SURYA (例: NMG2607-01)
-  // NSG prefix = SAIGON (例: NSG2606-04)
   const up=ivNo.toUpperCase();
-  if(up.startsWith('NA')) return 'ASPEX';
+  if(up.startsWith('NA'))  return 'ASPEX';
   if(up.startsWith('NMG')) return 'MEGA_SURYA';
+  if(up.startsWith('NKC')) return 'TKC_KRAFT';
+  if(up.startsWith('NDT')) return 'DONG_TIEN';
+  if(up.startsWith('NNE')) return 'NEW_TOYO';
+  if(up.startsWith('NTQ')) return 'TAN_QUANG';
+  if(up.startsWith('NVD')) return 'VAN_DIEM';
+  if(up.startsWith('NXM')) return 'XUAN_MAI';
   return 'SAIGON';
 }
 
@@ -932,7 +982,7 @@ async function loadInvoice(){
                `crcf9_sino,crcf9_all,crcf9_po_vo,crcf9_vo_no,`+
                `crcf9_place_of_delivery_1,crcf9_place_of_delivery_2,crcf9_place_of_delivery_3,`+
                `crcf9_notify_party,crcf9_address,crcf9_tel,crcf9_fax,`+
-               `crcf9_port_of_discharge,crcf9_invoice_text1,crcf9_bencert_text`+
+               `crcf9_port_of_discharge,crcf9_invoice_text1,crcf9_bencert_text,crcf9_fd_mail`+
       `&$orderby=crcf9_sino asc&$top=4`
     );
     const allSiList=allSiRes.value||[];
@@ -960,6 +1010,7 @@ async function loadInvoice(){
     S.portOfDischarge=S.siHeader?.crcf9_port_of_discharge||'';
     S.invoiceText1=S.siHeader?.crcf9_invoice_text1||'';
     S.beneCertText=S.siHeader?.crcf9_bencert_text||'';
+    S.importerEmail=S.siHeader?.crcf9_fd_mail||'';
 
     /* Step 6: S/I Detail (v1.22: allSiList 全件・hs_code 取得、中複排除) */
     {
@@ -1250,6 +1301,59 @@ function buildAll(){
     updateBadge('b-bene','✓');
     updateBadge('b-ft','N/A');
     updateBadge('b-esl','✓');
+    hideTab('mail');
+    updateBadge('b-mail','—');
+  } else if(['TKC_KRAFT','DONG_TIEN','NEW_TOYO','TAN_QUANG','VAN_DIEM','XUAN_MAI'].includes(S.importer)){
+    // ベトナム業者グループ
+    const badge=document.getElementById('importerBadge');
+    const badgeLabels={
+      TKC_KRAFT:'[TKC KRAFT]', DONG_TIEN:'[DONG TIEN]', NEW_TOYO:'[NEW TOYO]',
+      TAN_QUANG:'[TAN QUANG]', VAN_DIEM:'[VAN DIEM]', XUAN_MAI:'[XUAN MAI]'
+    };
+    badge.textContent=badgeLabels[S.importer]||`[${S.importer}]`;
+    badge.style.color='var(--info)';
+
+    // COO (全業者)
+    renderCOOMegaSurya();
+    updateBadge('b-co','✓');
+
+    // Q&Q (TKC_KRAFT 除く)
+    if(S.importer !== 'TKC_KRAFT'){
+      renderQQGeneric();
+      updateBadge('b-qq','✓');
+    } else {
+      renderNAForPanel('qq-content','TKC KRAFT は Q&amp;Q 不要');
+      updateBadge('b-qq','N/A');
+    }
+
+    // Bene Cert
+    if(S.importer === 'DONG_TIEN'){
+      renderBeneCertDT();
+      updateBadge('b-bene','✓');
+    } else if(['VAN_DIEM','XUAN_MAI'].includes(S.importer)){
+      renderBeneCertSimple();
+      updateBadge('b-bene','✓');
+    } else {
+      renderNAForPanel('bene-na-placeholder','この業者は Beneficiary Certificate 不要');
+      document.getElementById('doc-bene').innerHTML='<div class="na-panel">N/A — この業者は Beneficiary Certificate 不要</div>';
+      updateBadge('b-bene','N/A');
+    }
+
+    // COPY OF MAIL (TAN_QUANG のみ)
+    if(S.importer === 'TAN_QUANG'){
+      renderCopyOfMail();
+      showTab('mail');
+      updateBadge('b-mail','✓');
+    } else {
+      hideTab('mail');
+      updateBadge('b-mail','—');
+    }
+
+    // FT/ESL: N/A
+    renderNAForPanel('ft-content','この業者は Free Time Certificate 不要');
+    updateBadge('b-ft','N/A');
+    hideTab('esl');
+    updateBadge('b-esl','—');
   } else {
     // SAIGON: 既存4種生成
     renderQQ();
@@ -1277,6 +1381,7 @@ function renderNAForPanel(containerId, reason){
 /* SAIGON用パネル構造を復元 */
 function restoreSaigonPanels(){
   hideTab('esl');
+  hideTab('mail');
   const qqEl=document.getElementById('qq-content');
   if(qqEl && !qqEl.querySelector('#doc-qq')){
     qqEl.innerHTML=`
@@ -2378,6 +2483,250 @@ function renderESLMegaSurya(){
     ${certSig()}`;
 }
 
+/* ══════════════════════════════════════
+   v1.23: Certificate of Quality and Quantity (Vietnam 業者共用)
+══════════════════════════════════════ */
+function renderQQGeneric(){
+  const bk=S.booking;
+  const sc=S.saleContract;
+  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
+  const invoiceNo=bk.cr49f_invoice_no;
+  const etd=fmtDateEn(getEtd(bk));
+  const eta=fmtDateEn(getEta(bk));
+  const blNo=bk.cr49f_bl_number||'—';
+  const vessel=bk.cr49f_main_ship_name||'—';
+  const pol=bk.crcf9_bl_pol_text||'—';
+  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
+  const lc=getLcNo();
+  const portOfDest=getPortOfDestination();
+
+  const detailList=getShippedDetails();
+  const productLines=detailList.length>0
+    ? [...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')
+    : (S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING');
+
+  const allBlock=certBottom();
+
+  let importerBlock=`${S.importerName||'—'}<br>${S.importerAddr||''}`;
+  if(S.importerTel||S.importerFax){
+    importerBlock+=`<br>${S.importerTel||''}${S.importerFax?'&nbsp;&nbsp;&nbsp;'+S.importerFax:''}`;
+  }
+
+  document.getElementById('doc-qq').innerHTML=`
+    ${aspexDocHeader()}
+    <div class="cert-title">Certificate of Quality and Quantity</div>
+    <div class="cert-meta">
+      <div>Invoice No. &nbsp;${invoiceNo}</div>
+      <div>Date of Issuance : &nbsp;${etd}</div>
+      <div>ETD : &nbsp;${etd}</div>
+      <div>ETA : &nbsp;${eta}</div>
+    </div>
+    <div class="cert-to-block"><strong>TO.&nbsp;&nbsp;&nbsp;${S.importerName||'—'}</strong></div>
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">EXPORTER</div>
+      LEENEAR CORPORATION<br>
+      VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
+      TEL:+81-3-3528-9850 &nbsp;&nbsp;&nbsp; FAX:+81-3-3528-9851
+    </div>
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">IMPORTER</div>
+      ${importerBlock}
+    </div>
+    <div class="cert-confirm-bold">
+      WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED AND THE QUALITY
+      &amp; QUANTITY OF THE GOODS CORRESPOND TO THE CONTRACT NO. ${contractNo}
+    </div>
+    <div class="cert-items">
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Contry of Origin</span><span class="cert-item-val">JAPAN</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">B/L No.</span><span class="cert-item-val">${blNo}</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Description of Goods</span><span class="cert-item-val">${productLines}</span></div>
+      <div class="cert-item" style="margin-top:8px;"><span class="cert-bullet">●</span><span class="cert-item-label">Quantity</span><span class="cert-item-val">${S.totalBales} BALES</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Weight</span><span class="cert-item-val">${S.totalNwMt.toFixed(2)} MT</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Number of Container</span><span class="cert-item-val">${S.containerCount} Containers(40')</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Vessel's Name</span><span class="cert-item-val">${vessel}</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Port of Loading</span><span class="cert-item-val">${polJapan}</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Port of Destination</span><span class="cert-item-val">${portOfDest}</span></div>
+      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">L/C No.</span><span class="cert-item-val">${lc}</span></div>
+    </div>
+    <br>
+    <div class="cert-confirm-bold">WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED</div>
+    ${allBlock}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.23: Beneficiary's Certificate (DONG TIEN)
+══════════════════════════════════════ */
+function renderBeneCertDT(){
+  const bk=S.booking;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const issuanceDate=fmtDateEn(getEtd(bk));
+  const etdStr=fmtDateEn(getEtd(bk));
+  const etaStr=fmtDateEn(getEta(bk));
+  const blNo=bk.cr49f_bl_number||'—';
+  const blDate=fmtDateEn(getEtd(bk));
+  const vessel=bk.cr49f_main_ship_name||'—';
+  const carrier=S.carrierName||'—';
+  const lc=getLcNo();
+  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join(', ')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
+  const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
+  const sc=S.saleContract;
+  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
+
+  const declare=S.beneCertText||
+    '01 SET OF NON-NEGOTIABLE DOCUMENTS INCLUDING: BILL OF LADING, COMMERCIAL INVOICE, PACKING LIST, CERTIFICATE OF ORIGIN HAS BEEN SENT BY FAX OR BY E-MAIL TO APPLICANT.';
+
+  const toEmail=S.importerEmail||'';
+
+  document.getElementById('doc-bene').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Beneficiary's Certificate</div>
+    <div class="cert-meta">
+      <div>Date &nbsp;${issuanceDate}</div>
+      <div>Invoice No. &nbsp;${invoiceNo}</div>
+    </div>
+    <div class="cert-to-block">
+      <div><strong>TO: &nbsp;${S.importerName||'—'}</strong></div>
+      <div>${S.importerAddr||''}</div>
+      ${S.importerTel?'<div>'+S.importerTel+(S.importerFax?'&nbsp;&nbsp;'+S.importerFax:'')+'</div>':''}
+    </div>
+    <br>
+    <div class="cert-confirm-bold">${declare}</div>
+    <div class="bene-email-block">
+      <div class="bene-email-line"><span class="bene-email-label">From:</span> &nbsp;rcp@leenearcorp.com</div>
+      ${toEmail?'<div class="bene-email-line"><span class="bene-email-label">To:</span> &nbsp;'+toEmail+'</div>':''}
+      <div class="bene-email-line"><span class="bene-email-label">Subject:</span> [Shipping documents for ${invoiceNo}]</div>
+    </div>
+    <p style="font-size:13px;margin:4px 0;">Dear ALL, Please kindly find 01 set of non-negotiable documents including :</p>
+    <p style="font-size:13px;margin:4px 0 10px;">COPY BILL OF LADING, COPY INVOICE, COPY PACKING LIST.</p>
+    <div class="bene-table-wrap">
+      <table class="bene-tbl">
+        <tr>
+          <th>ETD</th><th>ETA</th><th>Invoice NO</th><th>Carrier</th>
+          <th>NAME OF VESSEL</th><th>B/L NUMBER AND DATE</th><th>MT</th>
+        </tr>
+        <tr>
+          <td>${etdStr}</td>
+          <td>${etaStr}</td>
+          <td>${invoiceNo}</td>
+          <td>${carrier}</td>
+          <td>${vessel}</td>
+          <td>${blNo} DATED ${blDate}</td>
+          <td style="text-align:right;">${S.totalNwMt.toFixed(2)}</td>
+        </tr>
+      </table>
+    </div>
+    <div style="font-size:12px;margin:4px 0 8px;text-align:right;font-weight:700;">TOTAL QUANTITY: ${S.totalNwMt.toFixed(2)}</div>
+    <div class="bene-amount-block">
+      <div>AMOUNT: ${amtStr}</div>
+      <div>SHIPMENT DATE.: ${etdStr}</div>
+      <div>L/C &nbsp;No.: ${lc}</div>
+      <div>AS PER THE CONTRACT NO.${contractNo}</div>
+      <div>DESCRIPTION OF GOODS: ${product}</div>
+    </div>
+    <br>
+    <div style="font-size:13px;">Thanks,</div>
+    <div style="font-size:13px;">Best Regards,</div>
+    ${certBottom()}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.23: Beneficiary's Certificate Simple (VAN DIEM / XUAN MAI)
+══════════════════════════════════════ */
+function renderBeneCertSimple(){
+  const bk=S.booking;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const issuanceDate=fmtDateEn(getEtd(bk));
+  const blNo=bk.cr49f_bl_number||'';
+  const lc=getLcNo();
+  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
+
+  const declare=S.beneCertText||
+    'WE, LEENEAR CORPORATION HEREBY DECLARE THAT: LEAST 10 DAYS FREE TIME OF DEMURRAGE AND 04 DAYS OF DETENTION AT DESTINATION PORT.';
+
+  document.getElementById('doc-bene').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Beneficiary's Certificate</div>
+    <div class="cert-meta">
+      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
+      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
+    </div>
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">EXPORTER</div>
+      LEENEAR CORPORATION<br>
+      ADD: VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064<br>
+      TEL: +81-3-3528-9850 &nbsp;&nbsp; FAX: +81-3-3528-9851
+    </div>
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">IMPORTER</div>
+      ${S.importerName||'—'}<br>
+      ${S.importerAddr?'ADD: '+S.importerAddr:''}
+      ${S.importerTel?'<br>'+S.importerTel+(S.importerFax?'&nbsp;&nbsp;'+S.importerFax:''):''}
+    </div>
+    <div class="ft-declare">${declare}</div>
+    <div class="cert-items">
+      <div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">L/C NO.</span><span class="cert-item-val">${lc}</span></div>
+      <div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">DESCRIPTION OF GOODS</span><span class="cert-item-val">${product}</span></div>
+      ${blNo?`<div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">B/L No.</span><span class="cert-item-val">${blNo}</span></div>`:''}
+    </div>
+    <br>
+    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
+    ${certBottom()}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.23: Copy of Mail (TAN QUANG 専用)
+══════════════════════════════════════ */
+function renderCopyOfMail(){
+  const bk=S.booking;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const issuanceDate=fmtDateEn(getEtd(bk));
+  const blNo=bk.cr49f_bl_number||'—';
+  const blDate=fmtDateEn(getEtd(bk));
+  const lc=getLcNo();
+  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
+  const pol=bk.crcf9_bl_pol_text||'—';
+  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
+  const portOfDest=getPortOfDestination();
+  const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
+
+  const declare=S.beneCertText||
+    '01 COPY OF FAX OR EMAIL ADVISING APPLICANT OF PARTICULARS OF SHIPMENT: VESSEL NAME, VOYAGE NO., B/L DATE, B/L NO., DESCRIPTION OF GOODS SHIPPED, L/C NO., INVOICE VALUE, PORT OF LOADING, PORT OF DISCHARGE, ETD, ETA, APPLICANT\'S NAME WITHIN 07 DAYS AFTER SHIPMENT DATE.';
+
+  document.getElementById('doc-mail').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Copy of Email</div>
+    <div class="cert-meta">
+      <div>Date : &nbsp;${issuanceDate}</div>
+      <div>InvoiceNo. : &nbsp;${invoiceNo}</div>
+    </div>
+    <div class="cert-to-block">
+      <div><strong>TO. ${S.importerName||'—'}</strong></div>
+      <div>${S.importerAddr||''}</div>
+    </div>
+    <br>
+    <div style="font-size:13px;line-height:1.6;margin-bottom:14px;">${declare}</div>
+    <div class="cert-items">
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">DESCRIPTION OF GOODS SHIPPED</span><span class="cert-item-val">${product}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">LC NO.</span><span class="cert-item-val">${lc}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L DATE</span><span class="cert-item-val">${blDate}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L NO.</span><span class="cert-item-val">${blNo}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">PORT OF LOADING</span><span class="cert-item-val">${polJapan}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">INVOICE VALUE</span><span class="cert-item-val">${amtStr}</span></div>
+      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">PORT OF DISCHARGE</span><span class="cert-item-val">${portOfDest}</span></div>
+    </div>
+    <br>
+    <div style="font-size:13px;">Thank you &amp; Best Regards,</div>
+    ${certBottom()}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
 function showTab(name){
   const el=document.getElementById('tab-'+name);
   if(el) el.style.display='';
@@ -2405,7 +2754,7 @@ function updateBadge(id,text){
 
 function switchTab(name){
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const panels=['search','verify','qq','co','bene','ft','esl'];
+    const panels=['search','verify','qq','co','bene','ft','esl','mail'];
     t.classList.toggle('active',panels[i]===name);
   });
   document.querySelectorAll('.panel').forEach(p=>{
@@ -2415,7 +2764,7 @@ function switchTab(name){
 
 function printDocs(tab){
   const iv=S.invoiceNo||'DOC';
-  const nameMap={qq:`${iv}_QQ`,co:`${iv}_CO`,bene:`${iv}_BC`,ft:`${iv}_FT`,esl:`${iv}_ESL`};
+  const nameMap={qq:`${iv}_QQ`,co:`${iv}_CO`,bene:`${iv}_BC`,ft:`${iv}_FT`,esl:`${iv}_ESL`,mail:`${iv}_MAIL`};
   const origTitle=document.title;
   if(nameMap[tab]) document.title=nameMap[tab];
   window.addEventListener('afterprint',()=>{document.title=origTitle;},{once:true});
