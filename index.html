@@ -332,8 +332,8 @@ input,select{font-family:inherit;}
   text-align:center;font-size:17px;font-weight:700;
   text-transform:uppercase;margin:10px 0 8px;letter-spacing:.3px;
 }
-.esl-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:5px 0 10px;}
-.esl-tbl td{border:1px solid #000;padding:2px 6px;vertical-align:middle;}
+.esl-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:2px 0 5px;}
+.esl-tbl td{border:1px solid #000;padding:1px 5px;vertical-align:middle;}
 .esl-label{font-weight:700;width:42%;}
 .esl-spacer{display:none;}
 
@@ -2146,7 +2146,7 @@ function renderESL(){
       <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
       <tr><td class="esl-label">MODE OF TRANSPORTATION</td><td>: OCEAN SHIPPING</td></tr>
       ${goodsTrFirst}${goodsTrRest}
-      <tr><td class="esl-label">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
+      <tr><td class="esl-label" style="font-size:10px;white-space:nowrap;">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
       <tr><td class="esl-label">WEIGHT (TNE)</td><td>: ${S.totalNwMt.toFixed(2)}MT</td></tr>
       <tr><td class="esl-label">NUMBER OF CONTAINER</td><td>: ${S.containerCount} Containers</td></tr>
       <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
@@ -2159,7 +2159,7 @@ function renderESL(){
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
     </div>
     <div style="font-size:13px;margin-bottom:10px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:13px;line-height:1.8;">
+    <div style="font-size:12px;line-height:1.35;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
       <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
@@ -2505,7 +2505,7 @@ function renderESLMegaSurya(){
       <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
       <tr><td class="esl-label">MODE OF TRANSPORTATION</td><td>: OCEAN SHIPPING</td></tr>
       ${goodsTrFirst}${goodsTrRest}
-      <tr><td class="esl-label">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
+      <tr><td class="esl-label" style="font-size:10px;white-space:nowrap;">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
       <tr><td class="esl-label">WEIGHT (TNE)</td><td>: ${S.totalNwMt.toFixed(2)}MT</td></tr>
       <tr><td class="esl-label">NUMBER OF CONTAINER</td><td>: ${S.containerCount} Containers</td></tr>
       <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
@@ -2518,7 +2518,7 @@ function renderESLMegaSurya(){
       OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
     </div>
     <div style="font-size:13px;margin-bottom:10px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:13px;line-height:1.8;">
+    <div style="font-size:12px;line-height:1.35;">
       <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
       <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
       <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
