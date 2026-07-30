@@ -2119,9 +2119,9 @@ function renderESL(){
 
   const goodsTrFirst=`<tr>
     <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+    <td>${rawGoods[0]?': '+rawGoods[0]:'&nbsp;'}</td>
   </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:'&nbsp;'}</td></tr>`).join('');
 
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
@@ -2478,9 +2478,9 @@ function renderESLMegaSurya(){
 
   const goodsTrFirst=`<tr>
     <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td>${rawGoods[0]?': '+rawGoods[0]:':'}</td>
+    <td>${rawGoods[0]?': '+rawGoods[0]:'&nbsp;'}</td>
   </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:''}</td></tr>`).join('');
+  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:'&nbsp;'}</td></tr>`).join('');
 
   document.getElementById('doc-esl').innerHTML=`
     ${aspexDocHeader()}
