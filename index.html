@@ -2804,42 +2804,40 @@ function renderBeneCertXSD(){
 
   document.getElementById('doc-bene').innerHTML=`
     ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
+    <div class="cert-title" style="margin:8px 0 4px;">Beneficiary's Certificate</div>
+    <div class="cert-meta" style="margin-bottom:6px;">
       <div>Date : &nbsp;&nbsp;&nbsp;${etdStr}</div>
       <div>INVOICE NO. : &nbsp;${invoiceNo}</div>
     </div>
 
-    <div class="cert-to-block">
+    <div class="cert-to-block" style="margin-bottom:6px;">
       <div><strong>TO. ${importerName},</strong></div>
     </div>
 
-    <div class="cert-party-block">
+    <div class="cert-party-block" style="margin-bottom:5px;font-size:12px;">
       <div class="cert-exporter-label">EXPORTER</div>
       LEENEAR CORPORATION<br>
       VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
-      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
+      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
     </div>
 
-    <div class="cert-party-block">
+    <div class="cert-party-block" style="margin-bottom:6px;font-size:12px;">
       <div class="cert-exporter-label">IMPORTER</div>
       ${importerName}<br>
       ${importerAddr}<br>
       ${importerTel}
     </div>
 
-    <div class="bene-email-block" style="margin:10px 0 6px;">
-      <div class="bene-email-line"><span class="bene-email-label">From:</span> &nbsp;rcp@leenearcorp.com</div>
-      <div class="bene-email-line"><span class="bene-email-label">Sent:</span> &nbsp;${sentDateStr}</div>
-      <div class="bene-email-line"><span class="bene-email-label">To:</span> &nbsp;${toEmail}</div>
-      <div class="bene-email-line"><span class="bene-email-label">Subject:</span> [Shipping advice for ${invoiceNo}]</div>
+    <div style="font-size:11px;line-height:1.5;margin:4px 0 5px;">
+      <div><span style="font-weight:700;min-width:52px;display:inline-block;">From:</span> rcp@leenearcorp.com</div>
+      <div><span style="font-weight:700;min-width:52px;display:inline-block;">Sent:</span> ${sentDateStr}</div>
+      <div><span style="font-weight:700;min-width:52px;display:inline-block;">To:</span> ${toEmail}</div>
+      <div><span style="font-weight:700;min-width:52px;display:inline-block;">Subject:</span> [Shipping advice for ${invoiceNo}]</div>
     </div>
 
-    <p style="font-size:12px;margin:6px 0 4px;">Dear ALL,</p>
-    <p style="font-size:12px;margin:0 0 4px;">
-      Please Kindly find one set copy of shipping documents for ${invoiceNo} and loading photos for each container as below
-    </p>
-    <div style="font-size:12px;line-height:1.7;margin-bottom:10px;">
+    <p style="font-size:11px;margin:3px 0 2px;">Dear ALL,</p>
+    <p style="font-size:11px;margin:0 0 3px;">Please Kindly find one set copy of shipping documents for ${invoiceNo} and loading photos for each container as below</p>
+    <div style="font-size:11px;line-height:1.55;margin-bottom:6px;">
       -EMPTY CONTAINER<br>
       -HALF LOADED CONTAINER<br>
       -FULL LOADED CONTAINER WITH BOTH DOOR OPEN<br>
@@ -2847,12 +2845,12 @@ function renderBeneCertXSD(){
       -FULL LOADED CONTAINER WITH BOTH DOOR CLOSE AND TOGETHER WITH CONTAINER NUMBER
     </div>
 
-    <div class="bene-table-wrap">
+    <div class="bene-table-wrap" style="margin-bottom:8px;">
       <table class="bene-tbl">
         <tr>
           <th>ETD</th><th>ETA</th><th>Invoice_NO</th><th>Carrier</th>
           <th>NAME OF VESSEL</th><th>BL_NO</th>
-          <th style="text-align:right;white-space:nowrap;line-height:1.6;">
+          <th style="text-align:right;white-space:nowrap;line-height:1.5;font-size:10px;">
             XSD<br>${contractNo}<br>${product}<br>
             ${priceUsd?'$'+priceUsd.toLocaleString('en-US',{minimumFractionDigits:2}):''}
             <br>${contractQty?contractQty+' MT':''}
@@ -2874,7 +2872,7 @@ function renderBeneCertXSD(){
       </table>
     </div>
 
-    <div style="font-size:12px;margin:10px 0;line-height:1.8;">
+    <div style="font-size:11.5px;margin:5px 0;line-height:1.6;">
       <div>L/C No.: ${lc}</div>
       ${poLine}
       ${contractLine}
@@ -2883,8 +2881,8 @@ function renderBeneCertXSD(){
       <div>SHIPMENT DATE : ${etdStr}</div>
     </div>
 
-    <div style="font-size:13px;">Thanks,</div>
-    <div style="font-size:13px;">Best regards,</div>
+    <div style="font-size:12px;margin-top:4px;">Thanks,</div>
+    <div style="font-size:12px;">Best regards,</div>
     ${certBottom()}
     <div class="cert-spacer"></div>
     ${certSig()}`;
