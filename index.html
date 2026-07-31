@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.28</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.29</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.28</span>
+    <span class="hdr-ver" id="header-sub">v1.29</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -397,15 +397,46 @@ input,select{font-family:inherit;}
   <!-- ══ TAB 1: Search ══ -->
   <div class="panel active" id="panel-search">
     <div class="card">
-      <div class="card-title">Invoice No. 検索 — COMPASS データ自動取得</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Invoice No.</label>
-          <input class="input-field" id="ivInput" type="text" placeholder="例: NSG2606-04 / NA2607-01"
-            onkeydown="if(event.key==='Enter')loadInvoice()">
+      <div class="card-title">
+        Invoice No. 検索 — COMPASS データ自動取得
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-secondary" id="modeSelectBtn" onclick="switchSearchMode('select')">📋 업체에서 선택</button>
+          <button class="btn btn-sm btn-ghost" id="modeManualBtn" onclick="switchSearchMode('manual')">✏️ 직접 입력</button>
         </div>
-        <button class="btn btn-primary" id="loadBtn" onclick="loadInvoice()">🔍 Load</button>
       </div>
+
+      <!-- ── 업체에서 선택 모드 ── -->
+      <div id="selectModePanel">
+        <div class="status" id="selectorStatus"></div>
+        <div class="form-row" style="flex-wrap:nowrap;align-items:flex-end;gap:10px;">
+          <div class="form-group">
+            <label>업체</label>
+            <select class="input-field" id="buyerSelect" onchange="onBuyerChange()" style="min-width:230px;">
+              <option value="">-- 로딩 중... --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Invoice No. <span style="font-size:10px;color:var(--muted);">ETD 내림차순</span></label>
+            <select class="input-field" id="ivSelect" style="min-width:220px;">
+              <option value="">-- 업체 선택 후 --</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="loadSelectedIv()">🔍 Load</button>
+        </div>
+      </div>
+
+      <!-- ── 직접 입력 모드 (기존) ── -->
+      <div id="manualModePanel" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Invoice No.</label>
+            <input class="input-field" id="ivInput" type="text" placeholder="例: NSG2606-04 / NA2607-01"
+              onkeydown="if(event.key==='Enter')loadInvoice()">
+          </div>
+          <button class="btn btn-primary" id="loadBtn" onclick="loadInvoice()">🔍 Load</button>
+        </div>
+      </div>
+
       <div class="status" id="loadStatus"></div>
     </div>
 
@@ -607,6 +638,9 @@ const S = {
   // v1.07: multi-importer
   importer: 'SAIGON',   // 'SAIGON' | 'ASPEX' | 'MEGA_SURYA' | 'XSD'
   contractQuantityMt: 0, // v1.27: cr49f_quantity (계약 총량 MT)
+  // v1.29: 업체 선택 모드
+  buyerMap: {},          // buyer_id → buyer_name
+  buyerBookingsMap: {},  // buyerName → [{invoiceNo, etd}]
   // v1.22: MEGA_SURYA additions
   allSiList: [],
   importerName: '',
@@ -755,6 +789,8 @@ function setConnected(ok){
     loginBtn.style.display='none';
     logoutBtn.style.display='';
     authBar.classList.add('hidden');
+    // v1.29: 로그인 후 자동으로 업체 선택기 초기화
+    setTimeout(()=>initBuyerSelector(), 200);
   }else{
     chip.classList.remove('connected');
     label.textContent='Not connected';
@@ -941,8 +977,9 @@ function isIndonesiaDest(){
 /* ══════════════
    Data Loading
 ══════════════ */
-async function loadInvoice(){
-  const iv=document.getElementById('ivInput').value.trim().toUpperCase();
+async function loadInvoice(ivOverride){
+  const ivRaw = ivOverride || (document.getElementById('ivInput')?.value||'');
+  const iv=ivRaw.trim().toUpperCase();
   if(!iv){showStatus('loadStatus','warn','Invoice No. を入力してください。');return;}
   if(!S.token){showStatus('loadStatus','err','先にログインしてください。');return;}
 
@@ -3063,6 +3100,120 @@ function renderCopyOfMail(){
     ${certBottom()}
     <div class="cert-spacer"></div>
     ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.29: 업체에서 선택 모드
+══════════════════════════════════════ */
+
+function switchSearchMode(mode){
+  const selectPanel=document.getElementById('selectModePanel');
+  const manualPanel=document.getElementById('manualModePanel');
+  const selectBtn=document.getElementById('modeSelectBtn');
+  const manualBtn=document.getElementById('modeManualBtn');
+  if(mode==='select'){
+    selectPanel.style.display='';
+    manualPanel.style.display='none';
+    selectBtn.className='btn btn-sm btn-secondary';
+    manualBtn.className='btn btn-sm btn-ghost';
+  } else {
+    selectPanel.style.display='none';
+    manualPanel.style.display='';
+    manualBtn.className='btn btn-sm btn-secondary';
+    selectBtn.className='btn btn-sm btn-ghost';
+  }
+}
+
+async function initBuyerSelector(){
+  if(!S.token) return;
+  // 既にロード済みなら再ロードしない
+  if(Object.keys(S.buyerBookingsMap).length>0){
+    _renderBuyerDropdown();
+    return;
+  }
+  showStatus('selectorStatus','info','<span class="spin">⟳</span> 업체 마스터 로딩 중...');
+  try{
+    // ── Step 1: Buyer 마스터 전체 캐시 ──
+    const buyerRes=await dvGet(
+      `cr49f_buyers?$select=cr49f_buyerid,cr49f_buyer_name,cr49f_buyer_code&$top=500`
+    );
+    S.buyerMap={};
+    (buyerRes.value||[]).forEach(b=>{
+      S.buyerMap[b.cr49f_buyerid]=b.cr49f_buyer_name||b.cr49f_buyer_code||'—';
+    });
+
+    // ── Step 2: 최근 6개월 Booking 조회 ──
+    showStatus('selectorStatus','info','<span class="spin">⟳</span> 最近6ヶ月のブッキング照会中...');
+    const sixAgo=new Date();
+    sixAgo.setMonth(sixAgo.getMonth()-6);
+    const dateStr=sixAgo.toISOString();
+    const bkgRes=await dvGet(
+      `cr49f_bookings?$filter=cr49f_etd ge ${dateStr}`+
+      `&$select=cr49f_invoice_no,cr49f_etd,crcf9_bl_etd,_cr49f_sale_contract_id_value`+
+      `&$orderby=crcf9_bl_etd desc,cr49f_etd desc&$top=300`
+    );
+    const bookings=bkgRes.value||[];
+
+    // ── Step 3: 고유 Sale Contract 병렬 조회 → buyer_id 취득 ──
+    const scIds=[...new Set(bookings.map(b=>b['_cr49f_sale_contract_id_value']).filter(Boolean))];
+    showStatus('selectorStatus','info',`<span class="spin">⟳</span> 販売契約 ${scIds.length}件 照会中...`);
+    const scBuyerMap={};
+    const CHUNK=20;
+    for(let i=0;i<scIds.length;i+=CHUNK){
+      await Promise.all(scIds.slice(i,i+CHUNK).map(async id=>{
+        try{
+          const sc=await dvGet(
+            `cr49f_sale_contracts(${id})?$select=cr49f_sale_contractid,_cr49f_buyer_id_value`
+          );
+          if(sc._cr49f_buyer_id_value) scBuyerMap[id]=sc._cr49f_buyer_id_value;
+        }catch(e){}
+      }));
+    }
+
+    // ── Step 4: 업체별 IV 목록 그룹핑 ──
+    S.buyerBookingsMap={};
+    bookings.forEach(b=>{
+      const scId=b['_cr49f_sale_contract_id_value'];
+      const buyerId=scBuyerMap[scId];
+      const buyerName=buyerId&&S.buyerMap[buyerId]?S.buyerMap[buyerId]:null;
+      if(!buyerName) return;
+      const etd=b.crcf9_bl_etd||b.cr49f_etd||'';
+      if(!S.buyerBookingsMap[buyerName]) S.buyerBookingsMap[buyerName]=[];
+      S.buyerBookingsMap[buyerName].push({invoiceNo:b.cr49f_invoice_no,etd});
+    });
+
+    _renderBuyerDropdown();
+    const buyerCount=Object.keys(S.buyerBookingsMap).length;
+    showStatus('selectorStatus','ok',`✅ ${buyerCount}社 / ${bookings.length}件 ロード完了`);
+  }catch(e){
+    showStatus('selectorStatus','err','로드 실패: '+e.message);
+  }
+}
+
+function _renderBuyerDropdown(){
+  const names=Object.keys(S.buyerBookingsMap).sort();
+  const sel=document.getElementById('buyerSelect');
+  if(!sel) return;
+  sel.innerHTML='<option value="">-- 업체 선택 --</option>'+
+    names.map(n=>`<option value="${n}">${n}</option>`).join('');
+}
+
+function onBuyerChange(){
+  const name=document.getElementById('buyerSelect').value;
+  const ivSel=document.getElementById('ivSelect');
+  if(!name){ivSel.innerHTML='<option value="">-- 업체 선택 후 --</option>';return;}
+  const list=(S.buyerBookingsMap[name]||[]).slice().sort((a,b)=>(b.etd||'').localeCompare(a.etd||''));
+  ivSel.innerHTML='<option value="">-- IV 선택 --</option>'+
+    list.map(item=>{
+      const d=item.etd?` (${item.etd.slice(0,10)})`:'';
+      return `<option value="${item.invoiceNo}">${item.invoiceNo}${d}</option>`;
+    }).join('');
+}
+
+function loadSelectedIv(){
+  const iv=document.getElementById('ivSelect').value;
+  if(!iv){showStatus('loadStatus','warn','Invoice No.を選択してください。');return;}
+  loadInvoice(iv);
 }
 
 function showTab(name){
