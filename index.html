@@ -303,7 +303,7 @@ input,select{font-family:inherit;}
     font-family:'Times New Roman',serif;letter-spacing:.3px;
     background:#fff;
   }
-  /* 全서류: flexで서명을 페이지 하단に固定 */
+  /* 全書類: flexで서명을 페이지 하단に固定 */
   .cert-doc{
     display:flex;flex-direction:column;
     min-height:calc(297mm - 12mm - 12mm);
@@ -400,8 +400,8 @@ input,select{font-family:inherit;}
       <div class="card-title">
         Invoice No. 検索 — COMPASS データ自動取得
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-secondary" id="modeSelectBtn" onclick="switchSearchMode('select')">📋 업체에서 선택</button>
-          <button class="btn btn-sm btn-ghost" id="modeManualBtn" onclick="switchSearchMode('manual')">✏️ 직접 입력</button>
+          <button class="btn btn-sm btn-secondary" id="modeSelectBtn" onclick="switchSearchMode('select')">📋 会社から選択</button>
+          <button class="btn btn-sm btn-ghost" id="modeManualBtn" onclick="switchSearchMode('manual')">✏️ 直接入力</button>
         </div>
       </div>
 
@@ -410,15 +410,15 @@ input,select{font-family:inherit;}
         <div class="status" id="selectorStatus"></div>
         <div class="form-row" style="flex-wrap:nowrap;align-items:flex-end;gap:10px;">
           <div class="form-group">
-            <label>업체</label>
+            <label>会社</label>
             <select class="input-field" id="buyerSelect" onchange="onBuyerChange()" style="min-width:230px;">
-              <option value="">-- 로딩 중... --</option>
+              <option value="">-- ロード中... --</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Invoice No. <span style="font-size:10px;color:var(--muted);">ETD 내림차순</span></label>
+            <label>Invoice No. <span style="font-size:10px;color:var(--muted);">ETD 降順</span></label>
             <select class="input-field" id="ivSelect" style="min-width:220px;">
-              <option value="">-- 업체 선택 후 --</option>
+              <option value="">-- 会社選択後 --</option>
             </select>
           </div>
           <button class="btn btn-primary" onclick="loadSelectedIv()">🔍 Load</button>
@@ -453,7 +453,7 @@ input,select{font-family:inherit;}
     <div class="card" id="podCard" style="display:none">
       <div class="card-title">Port of Destination (POD) 選択</div>
       <div id="podRadioWrap" style="padding:4px 0;"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 複数PODが設定されています。서류に使用するPODを選択してください。</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 複数PODが設定されています。書類に使用するPODを選択してください。</div>
     </div>
 
     <!-- LC JSON load (v1.3: SharePoint自動取得) -->
@@ -466,7 +466,7 @@ input,select{font-family:inherit;}
           自動取得失敗時のみ — LRS-XXXX_{LC番号}.json
         </div>
       </div>
-      <div id="lcJsonStatus" class="status info show">⚠️ LC JSON 未読込。LC 検証はスキップされます（서류生成は可能）。</div>
+      <div id="lcJsonStatus" class="status info show">⚠️ LC JSON 未読込。LC 検証はスキップされます（書類生成は可能）。</div>
       <div id="lcJsonInfo" style="display:none"></div>
       <div class="status" id="lcLoadStatus"></div>
     </div>
@@ -493,7 +493,8 @@ input,select{font-family:inherit;}
     </div>
 
     <div id="goPanel" style="display:none;margin-top:4px;">
-      <button class="btn btn-success" onclick="buildAll()">✅ 全서류を生成 → 各タブへ</button>
+      <button class="btn btn-success" onclick="buildAll()">✅ 全書類を生成 → 各タブへ</button>
+
     </div>
   </div><!-- /panel-search -->
 
@@ -562,8 +563,8 @@ input,select{font-family:inherit;}
   <!-- ══ TAB 5: LC Verify ══ -->
   <div class="panel" id="panel-verify">
     <div class="card">
-      <div class="card-title">LC 条件 vs 서류 検証結果</div>
-      <div id="verifyStatus" class="status info show">📋 全서류を生成後、LC JSON 読込済みの場合に自動検証されます。</div>
+      <div class="card-title">LC 条件 vs 書類 検証結果</div>
+      <div id="verifyStatus" class="status info show">📋 全書類を生成後、LC JSON 読込済みの場合に自動検証されます。</div>
       <div class="check-wrap" id="checkList"></div>
     </div>
   </div>
@@ -1020,7 +1021,7 @@ async function loadInvoice(ivOverride){
     S.containerCount=S.containers.length;
 
     if(!scGuid){
-      showStatus('loadStatus','warn','⚠ 販売契約リンクが見つかりません。ESL・서류生成は可能です（一部項目は空欄）。');
+      showStatus('loadStatus','warn','⚠ 販売契約リンクが見つかりません。ESL・書類生成は可能です（一部項目は空欄）。');
       renderDataCard();
       renderContainerTable();
       renderPodSelector();
@@ -1502,7 +1503,7 @@ function buildAll(){
   }
 
   if(S.lcJson) runLcVerify();
-  alert('全서류を生成しました！各タブで確認・印刷できます。');
+  alert('全書類を生成しました！各タブで確認・印刷できます。');
 }
 
 /* N/A パネル表示ヘルパー */
@@ -1944,7 +1945,7 @@ function runLcVerify(){
     const blNo = bk.cr49f_bl_number||'';
     results.push({
       badge: blNo ? 'OK' : 'WARN',
-      text: 'B/L No.: ' + (blNo || '(空欄) — 선積後にCOMPASSで確認要'),
+      text: 'B/L No.: ' + (blNo || '(空欄) — 船積み後にCOMPASSで確認要'),
       status: blNo ? 'ok' : 'warn'
     });
 
@@ -2005,7 +2006,7 @@ function runLcVerify(){
     const blNo=bk.cr49f_bl_number||'';
     results.push({
       badge:blNo&&blNo.length>0?'OK':'WARN',
-      text:'B/L No.: '+(blNo||'(空欄) — 선積後にCOMPASSで確認要'),
+      text:'B/L No.: '+(blNo||'(空欄) — 船積み後にCOMPASSで確認要'),
       status:blNo?'ok':'warn'
     });
 
@@ -2035,7 +2036,7 @@ function runLcVerify(){
       });
       results.push({
         badge:'WARN',
-        text:'[Vietcombank専用] Extra Copy Set: 全서류1セットのコピーを追加提出要（未提出はUSD22控除）',
+        text:'[Vietcombank専用] Extra Copy Set: 全書類1セットのコピーを追加提出要（未提出はUSD22控除）',
         status:'warn'
       });
     }
@@ -3131,7 +3132,7 @@ async function initBuyerSelector(){
     _renderBuyerDropdown();
     return;
   }
-  showStatus('selectorStatus','info','<span class="spin">⟳</span> 업체 마스터 로딩 중...');
+  showStatus('selectorStatus','info','<span class="spin">⟳</span> 会社マスターロード中...');
   try{
     // ── Step 1: Buyer 마스터 전체 캐시 ──
     const buyerRes=await dvGet(
@@ -3186,7 +3187,7 @@ async function initBuyerSelector(){
     const buyerCount=Object.keys(S.buyerBookingsMap).length;
     showStatus('selectorStatus','ok',`✅ ${buyerCount}社 / ${bookings.length}件 ロード完了`);
   }catch(e){
-    showStatus('selectorStatus','err','로드 실패: '+e.message);
+    showStatus('selectorStatus','err','ロード失敗: '+e.message);
   }
 }
 
@@ -3194,16 +3195,16 @@ function _renderBuyerDropdown(){
   const names=Object.keys(S.buyerBookingsMap).sort();
   const sel=document.getElementById('buyerSelect');
   if(!sel) return;
-  sel.innerHTML='<option value="">-- 업체 선택 --</option>'+
+  sel.innerHTML='<option value="">-- 会社を選択 --</option>'+
     names.map(n=>`<option value="${n}">${n}</option>`).join('');
 }
 
 function onBuyerChange(){
   const name=document.getElementById('buyerSelect').value;
   const ivSel=document.getElementById('ivSelect');
-  if(!name){ivSel.innerHTML='<option value="">-- 업체 선택 후 --</option>';return;}
+  if(!name){ivSel.innerHTML='<option value="">-- 会社選択後 --</option>';return;}
   const list=(S.buyerBookingsMap[name]||[]).slice().sort((a,b)=>(b.etd||'').localeCompare(a.etd||''));
-  ivSel.innerHTML='<option value="">-- IV 선택 --</option>'+
+  ivSel.innerHTML='<option value="">-- IVを選択 --</option>'+
     list.map(item=>{
       const d=item.etd?` (${item.etd.slice(0,10)})`:'';
       return `<option value="${item.invoiceNo}">${item.invoiceNo}${d}</option>`;
@@ -3213,6 +3214,7 @@ function onBuyerChange(){
 function loadSelectedIv(){
   const iv=document.getElementById('ivSelect').value;
   if(!iv){showStatus('loadStatus','warn','Invoice No.を選択してください。');return;}
+
   loadInvoice(iv);
 }
 
