@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.30</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.31</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.30</span>
+    <span class="hdr-ver" id="header-sub">v1.31</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -1938,6 +1938,7 @@ function renderBeneCertAspex(){
     </div>
     <div style="font-size:12px;margin:14px 0 4px;">LC NO : ${lcLine}</div>
     ${importLicNo!=='—'?`<div style="font-size:12px;margin:6px 0;">IMPORT LICENCE NO.${importLicNo}.</div>`:''}
+    ${certBottom()}
     <div class="cert-spacer"></div>
     ${certSig()}`;
 }
@@ -3104,6 +3105,7 @@ function renderBeneCertSK(){
       <div>BL NO.: &nbsp;${blNo}</div>
     </div>
 
+    ${certBottom()}
     <div class="cert-spacer"></div>
     ${certSig()}`;
 }
