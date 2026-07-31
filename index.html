@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.27</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.28</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.27</span>
+    <span class="hdr-ver" id="header-sub">v1.28</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -831,8 +831,8 @@ function updateTabHighlights(){
       ['ft','esl'].forEach(id=>{
         document.getElementById('tab-'+id)?.classList.add('na');
       });
-    } else if(S.importer==='XSD'){
-      // XSD: qq + co + bene 필요 / ft + esl + mail 불필요
+    } else if(S.importer==='XSD'||S.importer==='SIAM_KRAFT'){
+      // XSD / SIAM_KRAFT: qq + co + bene 필요 / ft + esl + mail 불필요
       ['qq','co','bene'].forEach(id=>{
         const el=document.getElementById('tab-'+id);
         if(el) el.classList.add('needed');
@@ -929,6 +929,7 @@ function detectImporter(ivNo){
   if(up.startsWith('NVD')) return 'VAN_DIEM';
   if(up.startsWith('NXM')) return 'XUAN_MAI';
   if(up.startsWith('NXS')) return 'XSD';
+  if(up.startsWith('NSK')) return 'SIAM_KRAFT';
   return 'GENERIC'; // 未登録業者
 }
 
@@ -1402,6 +1403,23 @@ function buildAll(){
     renderCOOMegaSurya();
     renderBeneCertXSD();
     renderNAForPanel('ft-content','XSD は Free Time Certificate 不要');
+    hideTab('esl');
+    hideTab('mail');
+    updateBadge('b-qq','✓');
+    updateBadge('b-co','✓');
+    updateBadge('b-bene','✓');
+    updateBadge('b-ft','N/A');
+    updateBadge('b-esl','—');
+    updateBadge('b-mail','—');
+  } else if(S.importer==='SIAM_KRAFT'){
+    // SIAM KRAFT: Q&Q + COO + Bene Cert 生成
+    const badge=document.getElementById('importerBadge');
+    badge.textContent='[SIAM KRAFT]';
+    badge.style.color='var(--purple)';
+    renderQQGeneric();
+    renderCOOMegaSurya();
+    renderBeneCertSK();
+    renderNAForPanel('ft-content','SIAM KRAFT は Free Time Certificate 不要');
     hideTab('esl');
     hideTab('mail');
     updateBadge('b-qq','✓');
@@ -2884,6 +2902,65 @@ function renderBeneCertXSD(){
     <div style="font-size:12px;margin-top:4px;">Thanks,</div>
     <div style="font-size:12px;">Best regards,</div>
     ${certBottom()}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.28: Beneficiary's Certificate (SIAM KRAFT)
+══════════════════════════════════════ */
+function renderBeneCertSK(){
+  const bk=S.booking;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const etd=getEtd(bk);
+  const etdStr=fmtDateEn(etd);
+  const blNo=bk.cr49f_bl_number||'—';
+
+  // IMPORTER 정보 (COMPASS 자동 취득)
+  const importerName=S.importerName||'SIAM KRAFT INDUSTRY CO., LTD.';
+  const importerAddr=S.importerAddr||'1 SIAM CEMENT ROAD BANGSUE, BANGKOK 10800 THAILAND';
+  const importerTel=S.importerTel||'TEL : 0-2586-2907';
+  const importerFax=S.importerFax||'FAX : 0-2586-2378';
+
+  // PO NO. → COMPASS crcf9_po_vo (LC JSON 불필요)
+  const poNo=S.poVo||'—';
+
+  document.getElementById('doc-bene').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Beneficiary's Certificate</div>
+    <div class="cert-meta">
+      <div>Date : &nbsp;&nbsp;&nbsp;${etdStr}</div>
+      <div>InvoiceNo. : &nbsp;${invoiceNo}</div>
+    </div>
+
+    <div class="cert-to-block">
+      <div><strong>TO. &nbsp;${importerName}.</strong></div>
+    </div>
+
+    <div class="cert-party-block" style="font-size:12.5px;">
+      <div class="cert-exporter-label">EXPORTER</div>
+      LEENEAR CORPORATION<br>
+      VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064<br>
+      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
+    </div>
+
+    <div class="cert-party-block" style="font-size:12.5px;">
+      <div class="cert-exporter-label">IMPORTER</div>
+      ${importerName}<br>
+      ${importerAddr}<br>
+      ${importerTel} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${importerFax}
+    </div>
+
+    <div style="margin:18px 0 18px 20px;font-size:12.5px;line-height:1.7;">
+      WE, LEENEAR CORPORATION HEREBY DECLARE THAT:<br>
+      14 DAYS FREE TIME DEMURRAGE AND DETENTION COMBINED
+    </div>
+
+    <div style="font-size:12.5px;line-height:1.8;margin-top:10px;">
+      <div>PO NO.: &nbsp;${poNo}</div>
+      <div>BL NO.: &nbsp;${blNo}</div>
+    </div>
+
     <div class="cert-spacer"></div>
     ${certSig()}`;
 }
