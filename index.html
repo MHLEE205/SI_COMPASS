@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.29</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.30</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.29</span>
+    <span class="hdr-ver" id="header-sub">v1.30</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -1322,9 +1322,114 @@ function showLcJsonInfo(lc){
       <span class="lc-label">PO Date</span>
       <span class="lc-val">${S.poDate||'—'}</span>
       <span class="lc-label">Docs 46A</span>
-      <span class="lc-val">${(lc.docs46A||[]).length} items</span>
-    </div>`;
+      <span class="lc-val">${(lc.docs46A||[]).length} 件</span>
+    </div>
+    ${renderDocs46ATable(lc)}
+    ${lc.addCond47A?renderAddCond47A(lc.addCond47A):''}`;
   el.style.display='';
+}
+
+/* ══════════════════════════════════════
+   v1.30: 46A 必要書類 テーブル
+══════════════════════════════════════ */
+function parseDocEntry(doc){
+  // ── 장수 파싱 ──
+  let qty='—';
+  const fracM=doc.match(/(\d+)\/(\d+)\s*(?:ORIGINALS?\s*)?(?:SET|B\/L)/i);
+  if(fracM){
+    qty=`${fracM[1]}/${fracM[2]} SET`;
+  } else if(/FULL\s+SET/i.test(doc)){
+    qty='FULL SET';
+  } else if(/IN\s+DUPLICATE/i.test(doc)){
+    qty='2 ORIG';
+  } else if(/IN\s+TRIPLICATE/i.test(doc)){
+    qty='3 ORIG';
+  } else {
+    const origM=doc.match(/(\d+)\s*ORIGINALS?/i);
+    const copyM=doc.match(/(\d+)\s*(?:COPIES|COPY)/i);
+    const parts=[];
+    if(origM) parts.push(`${origM[1]} ORIG`);
+    if(copyM) parts.push(`${copyM[1]} COPY`);
+    if(parts.length) qty=parts.join(' + ');
+  }
+
+  // ── 書類名パターンマッチ ──
+  const patterns=[
+    [/BILL\s+OF\s+LADING/i,                              'BILL OF LADING'],
+    [/COMMERCIAL\s+INVOICE/i,                             'COMMERCIAL INVOICE'],
+    [/PACKING\s+LIST/i,                                   'PACKING LIST'],
+    [/CERTIFICATE\s+OF\s+ORIGIN/i,                        'CERTIFICATE OF ORIGIN'],
+    [/CERTIFICATE\s+OF\s+QUALITY\s+AND\s+QUANTITY/i,      'CERT. OF QUALITY & QUANTITY'],
+    [/CERTIFICATE\s+OF\s+QUALITY/i,                       'CERT. OF QUALITY'],
+    [/BENEFICIARY.?S\s+CERTIFICATE.*?FREE\s+TIME/i,       "BENEFICIARY'S CERT. (FREE TIME)"],
+    [/BENEFICIARY.?S\s+CERTIFICATE/i,                     "BENEFICIARY'S CERTIFICATE"],
+    [/EXPORTER.?S\s+STATEMENT/i,                          "EXPORTER'S STATEMENT"],
+    [/INSURANCE\s+POLICY|INSURANCE\s+CERTIFICATE/i,       'INSURANCE'],
+    [/WEIGHT\s+CERTIFICATE/i,                             'WEIGHT CERTIFICATE'],
+    [/PACKING\s+DECLARATION/i,                            'PACKING DECLARATION'],
+    [/CERTIFICATE/i,                                      'CERTIFICATE'],
+  ];
+  let name=doc.slice(0,40).trim();
+  for(const [pat,label] of patterns){
+    if(pat.test(doc)){name=label;break;}
+  }
+
+  return {name,qty};
+}
+
+function renderDocs46ATable(lc){
+  const docs=lc.docs46A||[];
+  if(!docs.length) return '';
+  const rows=docs.map((doc,i)=>{
+    const {name,qty}=parseDocEntry(doc);
+    const qtyColor=qty==='—'?'var(--muted)':'var(--accent)';
+    // 全文を折り畳み表示
+    const shortDoc=doc.length>120?doc.slice(0,120)+'…':doc;
+    return `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:5px 6px;color:var(--muted);text-align:center;font-size:11px;">${i+1}</td>
+        <td style="padding:5px 6px;font-weight:700;font-size:11.5px;color:var(--text);white-space:nowrap;">${name}</td>
+        <td style="padding:5px 8px;text-align:center;white-space:nowrap;font-size:12px;font-weight:700;color:${qtyColor};">${qty}</td>
+        <td style="padding:5px 6px;font-size:10.5px;color:var(--text2);line-height:1.5;">${shortDoc}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        46A — 必要書類
+        <span style="font-weight:600;color:var(--accent);font-size:12px;">${docs.length} 件</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="background:var(--surface2);border-bottom:2px solid var(--border);">
+              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:center;width:28px;">#</th>
+              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:left;">書類名</th>
+              <th style="padding:5px 8px;color:var(--muted);font-weight:600;text-align:center;white-space:nowrap;">枚数</th>
+              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:left;">要件内容</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderAddCond47A(text){
+  if(!text) return '';
+  const lines=text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const html=lines.map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
+  return `
+    <div style="margin-top:10px;padding:10px 12px;background:var(--surface2);
+                border:1px solid var(--border);border-radius:6px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.6px;margin-bottom:6px;">
+        47A — 追加条件
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.65;">${html}</div>
+    </div>`;
 }
 
 /* ══════════════
