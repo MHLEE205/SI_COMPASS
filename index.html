@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.26</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.27</title>
 <style>
 /* ── Base ── */
 :root {
@@ -363,7 +363,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.26</span>
+    <span class="hdr-ver" id="header-sub">v1.27</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -605,7 +605,8 @@ const S = {
   graphToken: null,
   graphTokenExpiry: 0,
   // v1.07: multi-importer
-  importer: 'SAIGON',   // 'SAIGON' | 'ASPEX' | 'MEGA_SURYA'
+  importer: 'SAIGON',   // 'SAIGON' | 'ASPEX' | 'MEGA_SURYA' | 'XSD'
+  contractQuantityMt: 0, // v1.27: cr49f_quantity (계약 총량 MT)
   // v1.22: MEGA_SURYA additions
   allSiList: [],
   importerName: '',
@@ -830,6 +831,16 @@ function updateTabHighlights(){
       ['ft','esl'].forEach(id=>{
         document.getElementById('tab-'+id)?.classList.add('na');
       });
+    } else if(S.importer==='XSD'){
+      // XSD: qq + co + bene 필요 / ft + esl + mail 불필요
+      ['qq','co','bene'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('needed');
+      });
+      ['ft','esl','mail'].forEach(id=>{
+        const el=document.getElementById('tab-'+id);
+        if(el) el.classList.add('na');
+      });
     } else if(S.importer==='GENERIC'){
       const allDocTabs=['qq','co','bene','ft','esl','mail'];
       allDocTabs.forEach(id=>{
@@ -917,6 +928,7 @@ function detectImporter(ivNo){
   if(up.startsWith('NTQ')) return 'TAN_QUANG';
   if(up.startsWith('NVD')) return 'VAN_DIEM';
   if(up.startsWith('NXM')) return 'XUAN_MAI';
+  if(up.startsWith('NXS')) return 'XSD';
   return 'GENERIC'; // 未登録業者
 }
 
@@ -990,11 +1002,12 @@ async function loadInvoice(){
     /* Step 4: Sale Detail */
     const sdRes=await dvGet(
       `cr49f_sale_details?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
-      `&$select=cr49f_price&$top=1`
+      `&$select=cr49f_price,cr49f_quantity&$top=1`
     );
     S.saleDetail=sdRes.value&&sdRes.value.length>0?sdRes.value[0]:null;
     const priceUsd=S.saleDetail?.cr49f_price||0;
     S.amountUsd=Math.round(S.totalNwMt*priceUsd*100)/100;
+    S.contractQuantityMt=S.saleDetail?.cr49f_quantity||0;
 
     /* Step 5: S/I 全件照会 */
     showStatus('loadStatus','info','<span class="spin">⟳</span> S/I・LC番号取得中...');
@@ -1380,6 +1393,23 @@ function buildAll(){
     updateBadge('b-ft','N/A');
     hideTab('esl');
     updateBadge('b-esl','—');
+  } else if(S.importer==='XSD'){
+    // XSD: Q&Q + COO + Bene Cert 生成
+    const badge=document.getElementById('importerBadge');
+    badge.textContent='[XSD]';
+    badge.style.color='var(--info)';
+    renderQQGeneric();
+    renderCOOMegaSurya();
+    renderBeneCertXSD();
+    renderNAForPanel('ft-content','XSD は Free Time Certificate 不要');
+    hideTab('esl');
+    hideTab('mail');
+    updateBadge('b-qq','✓');
+    updateBadge('b-co','✓');
+    updateBadge('b-bene','✓');
+    updateBadge('b-ft','N/A');
+    updateBadge('b-esl','—');
+    updateBadge('b-mail','—');
   } else if(S.importer==='GENERIC'){
     // 未登録業者: COO + Q&Q (+ インドネシア向けはESL)
     const badge=document.getElementById('importerBadge');
@@ -2730,6 +2760,146 @@ function renderBeneCertSimple(){
     ${certBottom()}
     <div class="cert-spacer"></div>
     ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.27: Beneficiary's Certificate (XSD)
+══════════════════════════════════════ */
+function renderBeneCertXSD(){
+  const bk=S.booking;
+  const sc=S.saleContract;
+  const invoiceNo=bk.cr49f_invoice_no;
+  const etd=getEtd(bk);
+  const eta=getEta(bk);
+  const etdStr=fmtDateEn(etd);
+  const etaStr=fmtDateEn(eta);
+  const blNo=bk.cr49f_bl_number||'—';
+  const vessel=bk.cr49f_main_ship_name||'—';
+  const carrier=S.carrierName||'—';
+  const lc=getLcNo();
+  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
+  const priceUsd=S.saleDetail?.cr49f_price||0;
+  const contractQty=S.contractQuantityMt||0;
+  const valueStr='USD '+Math.round(S.amountUsd).toLocaleString('en-US');
+  const sentDateStr=fmtDateSent(etd);
+
+  // 품목 (선적 품목 조인 우선)
+  const detailList=getShippedDetails();
+  const product=[...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))].join(', ')
+    ||S.siDetail?.crcf9_productname||'WASTE PAPER';
+
+  // IMPORTER 정보 (COMPASS crcf9_notify_party / crcf9_address / crcf9_tel)
+  const importerName=S.importerName||'XSD INTERNATIONAL PAPER SDN BHD';
+  const importerAddr=S.importerAddr||'NO. 441, BANGUNAN XSD INTERNATIONAL PAPER SDN BHD, 09400 PADANG MEHA, KULIM, KEDAH, MALAYSIA.';
+  const importerTel=S.importerTel||'TEL: +60 4 688 9069';
+
+  // To 이메일 (COMPASS crcf9_fd_mail 優先、なければ固定)
+  const toEmail=S.importerEmail||'info@xsdcorp.com';
+
+  // 하단 PO / CONTRACT
+  const poNo=S.poNo||'';
+  const poLine=poNo?`<div style="font-size:12px;">PURCHASE ORDER NUMBER (${poNo})</div>`:'';
+  const contractLine=contractNo&&contractNo!=='—'
+    ?`<div style="font-size:12px;">CONTRACT NUMBER (${contractNo})</div>`:'' ;
+
+  document.getElementById('doc-bene').innerHTML=`
+    ${certHeader()}
+    <div class="cert-title">Beneficiary's Certificate</div>
+    <div class="cert-meta">
+      <div>Date : &nbsp;&nbsp;&nbsp;${etdStr}</div>
+      <div>INVOICE NO. : &nbsp;${invoiceNo}</div>
+    </div>
+
+    <div class="cert-to-block">
+      <div><strong>TO. ${importerName},</strong></div>
+    </div>
+
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">EXPORTER</div>
+      LEENEAR CORPORATION<br>
+      VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
+      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
+    </div>
+
+    <div class="cert-party-block">
+      <div class="cert-exporter-label">IMPORTER</div>
+      ${importerName}<br>
+      ${importerAddr}<br>
+      ${importerTel}
+    </div>
+
+    <div class="bene-email-block" style="margin:10px 0 6px;">
+      <div class="bene-email-line"><span class="bene-email-label">From:</span> &nbsp;rcp@leenearcorp.com</div>
+      <div class="bene-email-line"><span class="bene-email-label">Sent:</span> &nbsp;${sentDateStr}</div>
+      <div class="bene-email-line"><span class="bene-email-label">To:</span> &nbsp;${toEmail}</div>
+      <div class="bene-email-line"><span class="bene-email-label">Subject:</span> [Shipping advice for ${invoiceNo}]</div>
+    </div>
+
+    <p style="font-size:12px;margin:6px 0 4px;">Dear ALL,</p>
+    <p style="font-size:12px;margin:0 0 4px;">
+      Please Kindly find one set copy of shipping documents for ${invoiceNo} and loading photos for each container as below
+    </p>
+    <div style="font-size:12px;line-height:1.7;margin-bottom:10px;">
+      -EMPTY CONTAINER<br>
+      -HALF LOADED CONTAINER<br>
+      -FULL LOADED CONTAINER WITH BOTH DOOR OPEN<br>
+      -FULL LOADED CONTAINER WITH ONE DOOR OPEN<br>
+      -FULL LOADED CONTAINER WITH BOTH DOOR CLOSE AND TOGETHER WITH CONTAINER NUMBER
+    </div>
+
+    <div class="bene-table-wrap">
+      <table class="bene-tbl">
+        <tr>
+          <th>ETD</th><th>ETA</th><th>Invoice_NO</th><th>Carrier</th>
+          <th>NAME OF VESSEL</th><th>BL_NO</th>
+          <th style="text-align:right;white-space:nowrap;line-height:1.6;">
+            XSD<br>${contractNo}<br>${product}<br>
+            ${priceUsd?'$'+priceUsd.toLocaleString('en-US',{minimumFractionDigits:2}):''}
+            <br>${contractQty?contractQty+' MT':''}
+          </th>
+        </tr>
+        <tr>
+          <td>${etdStr}</td>
+          <td>${etaStr}</td>
+          <td>${invoiceNo}</td>
+          <td>${carrier}</td>
+          <td>${vessel}</td>
+          <td>${blNo}</td>
+          <td style="text-align:right;">${S.totalNwMt.toFixed(2)}</td>
+        </tr>
+        <tr class="bene-tbl-header">
+          <td colspan="6" style="font-weight:700;">Total</td>
+          <td style="text-align:right;font-weight:700;">${S.totalNwMt.toFixed(2)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="font-size:12px;margin:10px 0;line-height:1.8;">
+      <div>L/C No.: ${lc}</div>
+      ${poLine}
+      ${contractLine}
+      <div>GOODS: ${product}</div>
+      <div>VALUE OF SHIPMENT: ${valueStr}</div>
+      <div>SHIPMENT DATE : ${etdStr}</div>
+    </div>
+
+    <div style="font-size:13px;">Thanks,</div>
+    <div style="font-size:13px;">Best regards,</div>
+    ${certBottom()}
+    <div class="cert-spacer"></div>
+    ${certSig()}`;
+}
+
+/* ══════════════════════════════════════
+   v1.27: Sent 날짜 포맷 (요일 + 월일연도)
+══════════════════════════════════════ */
+function fmtDateSent(iso){
+  if(!iso) return '—';
+  const d=new Date(iso);
+  if(isNaN(d)) return iso;
+  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return `${DAYS[d.getDay()]}, ${MON[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
 }
 
 /* ══════════════════════════════════════
