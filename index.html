@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.31</title>
+<title>SYS-D-04 | CERTIFICATE TOOL v1.32</title>
 <style>
 /* ── Base ── */
 :root {
@@ -19,6 +19,12 @@
   --bg:#f4f6fb; --surface:#ffffff; --surface2:#f0f4ff; --surface3:#e8edf7;
   --border:#d1d5db; --text:#111827; --text2:#6b7280; --text3:#9ca3af;
   --muted:#6b7280; --muted2:#9ca3af;
+}
+[data-theme="leenai"] {
+  --bg:#FAFDF7; --surface:#ffffff; --surface2:#F2F9EE; --surface3:#E8F5E0;
+  --border:#D0E8C0; --text:#1A3A0E; --text2:#4A6A3A; --text3:#8AAA80;
+  --muted:#4A6A3A; --muted2:#8AAA80;
+  --accent:#2D5A1E; --accent2:#2E72C8;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
@@ -363,7 +369,7 @@ input,select{font-family:inherit;}
   <span class="hdr-title">CERTIFICATE TOOL</span>
   <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.31</span>
+    <span class="hdr-ver" id="header-sub">v1.32</span>
     <div class="auth-chip" id="authChip">
       <span class="dot"></span>
       <span id="authLabel">Not connected</span>
@@ -908,14 +914,26 @@ function updateTabHighlights(){
   }
 }
 
+function updateThemeBtn(theme){
+  const btn=document.getElementById('themeToggleBtn');
+  if(!btn) return;
+  const labels={dark:'🌙 ダーク',light:'☀️ ライト',leenai:'🌿 LEENAI'};
+  btn.textContent=labels[theme]||'🌙 ダーク';
+}
 function toggleTheme(){
   const html=document.documentElement;
-  const isLight=html.dataset.theme==='light';
-  html.dataset.theme=isLight?'dark':'light';
-  const btn=document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent=isLight?'🌙 ダーク':'☀️ ライト';
-  localStorage.setItem('leenai_theme',html.dataset.theme);
+  const current=html.getAttribute('data-theme')||'dark';
+  const order=['dark','light','leenai'];
+  const next=order[(order.indexOf(current)+1)%order.length];
+  html.setAttribute('data-theme',next);
+  localStorage.setItem('leenai_theme',next);
+  updateThemeBtn(next);
 }
+(function(){
+  const saved=localStorage.getItem('leenai_theme')||'dark';
+  document.documentElement.setAttribute('data-theme',saved);
+  document.addEventListener('DOMContentLoaded',()=>updateThemeBtn(saved));
+})();
 
 /* ══════════════
    Dataverse API
