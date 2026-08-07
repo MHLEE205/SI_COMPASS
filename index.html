@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.4</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.5</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -143,6 +143,19 @@ input,select,textarea{font-family:inherit;}
   .hdr,.card:not(.result-card),.powered{display:none!important;}
 }
 
+/* ── 項目別コピー行 ── */
+.rg-val-copyable{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.2);
+  border-radius:6px;padding:5px 8px;
+}
+.rg-val-copyable .rg-text{font-size:12px;color:var(--text);word-break:break-all;}
+.rg-val-fixed{font-size:12px;color:var(--text2);padding:3px 0;}
+.rg-label-copy{font-size:11px;color:var(--accent);font-weight:700;padding-top:6px;}
+.rg-label-fixed{font-size:11px;color:var(--text3);padding-top:3px;}
+.copy-tag{font-size:9px;background:rgba(79,142,247,.2);color:var(--accent);
+  border-radius:4px;padding:1px 5px;font-weight:700;white-space:nowrap;}
+
 /* ── LC JSON ドロップゾーン ── */
 .drop-zone{
   border:2px dashed var(--border2);border-radius:8px;padding:14px 16px;
@@ -173,7 +186,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.4</div>
+    <div class="hdr-ver" id="header-sub">v1.5</div>
   </div>
 </div>
 
@@ -249,7 +262,6 @@ input,select,textarea{font-family:inherit;}
     <div class="result-card">
       <div class="result-card-title">
         🗂️ 画面① — 保険基本情報
-        <button class="btn btn-copy" onclick="copySection('screen1Text','copyBtn1')" id="copyBtn1">📋 コピー</button>
       </div>
       <!-- ICC 条件セレクター -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;
@@ -269,7 +281,6 @@ input,select,textarea{font-family:inherit;}
     <div class="result-card">
       <div class="result-card-title">
         🚢 画面② — 本船・航路情報
-        <button class="btn btn-copy" onclick="copySection('screen2Text','copyBtn2')" id="copyBtn2">📋 コピー</button>
       </div>
       <div class="result-grid" id="screen2Grid"></div>
       <div style="display:none;" id="screen2Text"></div>
@@ -436,22 +447,20 @@ function onIccChange(){
 }
 
 function refreshScreen1(){
-  // 現在の ivNo を取得
   const ivNo = document.getElementById('resInvoice')?.textContent || '';
   if(!ivNo) return;
   const iccType = document.getElementById('iccSelect')?.value || 'A';
   const s1Items = [
-    ['保険種目',       '輸出'],
-    ['Open Policy No.', OPEN_POLICY_NO],
-    ['Assured(s)',      ASSURED],
-    ['Invoice No.',     ivNo],
-    ['Claim, if any, payable at/in', 'DESTINATION'],
-    ['Conditions',     ICC_CONDITIONS[iccType]],
-    ['Local Vessel or Conveyance', 'LAND CONVEYANCE'],
+    ['保険種目',                     '輸出',                   false],
+    ['Open Policy No.',              OPEN_POLICY_NO,           false],
+    ['Assured(s)',                   ASSURED,                  false],
+    ['Invoice No.',                  ivNo,                     true],
+    ['Claim, if any, payable at/in', 'DESTINATION',            false],
+    ['Conditions',                   ICC_CONDITIONS[iccType],  false],
+    ['Local Vessel or Conveyance',   'LAND CONVEYANCE',        false],
   ];
   renderGrid('screen1Grid', s1Items);
-  document.getElementById('screen1Text').textContent =
-    s1Items.map(([l,v])=>`${l}: ${v}`).join('\n');
+  document.getElementById('screen1Text').textContent = ivNo;
 }
 
 /* ══════════════════════════════════════════
@@ -702,28 +711,30 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   // ── 画面① ──
   const iccType = document.getElementById('iccSelect')?.value || 'A';
   const s1Items = [
-    ['保険種目',       '輸出'],
-    ['Open Policy No.', OPEN_POLICY_NO],
-    ['Assured(s)',      ASSURED],
-    ['Invoice No.',     ivNo],
-    ['Claim, if any, payable at/in', 'DESTINATION'],
-    ['Conditions',     ICC_CONDITIONS[iccType]],
-    ['Local Vessel or Conveyance', 'LAND CONVEYANCE'],
+    ['保険種目',                     '輸出',                   false],
+    ['Open Policy No.',              OPEN_POLICY_NO,           false],
+    ['Assured(s)',                   ASSURED,                  false],
+    ['Invoice No.',                  ivNo,                     true],
+    ['Claim, if any, payable at/in', 'DESTINATION',            false],
+    ['Conditions',                   ICC_CONDITIONS[iccType],  false],
+    ['Local Vessel or Conveyance',   'LAND CONVEYANCE',        false],
   ];
   renderGrid('screen1Grid', s1Items);
-  document.getElementById('screen1Text').textContent = s1Items.map(([l,v])=>`${l}: ${v}`).join('\n');
+  // screen1Text は Invoice No. のみ (コピー用)
+  document.getElementById('screen1Text').textContent = ivNo;
 
   // ── 画面② ──
   const s2Items = [
-    ['From (interior port)',  'INTERIOR PLACE IN JAPAN'],
-    ['Ship or Vessel',        ship],
-    ['Sailing on or about',   etdFormatted],
-    ['Voyage at and from',    pol],
-    ['Voyage to/via',         pod],
-    ['Thence to',             ''],
+    ['From (interior port)', 'INTERIOR PLACE IN JAPAN', false],
+    ['Ship or Vessel',       ship,                      true],
+    ['Sailing on or about',  etdFormatted,              true],
+    ['Voyage at and from',   pol,                       true],
+    ['Voyage to/via',        pod,                       true],
+    ['Thence to',            '',                        false],
   ];
   renderGrid('screen2Grid', s2Items);
-  document.getElementById('screen2Text').textContent = s2Items.filter(([,v])=>v).map(([l,v])=>`${l}: ${v}`).join('\n');
+  // screen2Text は不使用 (各項目個別コピー)
+  document.getElementById('screen2Text').textContent = '';
 
   // ── 画面③ Goods テキスト — データ整理 ──
   // sale_detail_id → container グルーピング
@@ -852,11 +863,30 @@ function sumAllCt(ctByDetail){
 }
 
 function renderGrid(containerId, items){
+  // items: [label, value] or [label, value, copyable]
   const el = document.getElementById(containerId);
-  el.innerHTML = items.map(([label, val])=>`
-    <div class="rg-label">${escapeHtml(label)}</div>
-    <div class="rg-val" style="white-space:pre-wrap;">${escapeHtml(val||'—')}</div>
-  `).join('');
+  let html = '';
+  items.forEach(([label, val, copyable], i)=>{
+    const uid = `rg_${containerId}_${i}`;
+    if(copyable && val && val !== '—'){
+      html += `
+        <div class="rg-label-copy">${escapeHtml(label)} <span class="copy-tag">📋 要入力</span></div>
+        <div class="rg-val-copyable">
+          <span class="rg-text" style="white-space:pre-wrap;">${escapeHtml(val)}</span>
+          <button class="btn btn-copy" style="flex-shrink:0;" id="${uid}_btn"
+            onclick="copyVal(${JSON.stringify(val)},'${uid}_btn')">📋</button>
+        </div>`;
+    } else {
+      html += `
+        <div class="rg-label-fixed">${escapeHtml(label)}</div>
+        <div class="rg-val-fixed" style="white-space:pre-wrap;">${escapeHtml(val||'—')}</div>`;
+    }
+  });
+  el.innerHTML = html;
+}
+
+function copyVal(text, btnId){
+  copyToClipboard(text, btnId);
 }
 
 function formatDateForInsurance(dateStr){
