@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.0</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.2</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -158,7 +158,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.0</div>
+    <div class="hdr-ver" id="header-sub">v1.2</div>
   </div>
 </div>
 
@@ -476,7 +476,7 @@ async function fetchData(){
       const siRes = await dvGet(
         `cr49f_s_is?$filter=${encodeURIComponent(`_cr49f_sale_contract_id_value eq ${scGuid} and crcf9_sino eq 1`)}` +
         `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_vo_no,crcf9_po_vo,` +
-        `crcf9_consignee,crcf9_notify_party,crcf9_address,crcf9_pod_bl1,` +
+        `crcf9_consignee,crcf9_notify_party,crcf9_address,crcf9_pod_bl1,crcf9_place_of_delivery_1,` +
         `crcf9_payment_classification,crcf9_payment_deadline`
       );
       if(siRes.value&&siRes.value.length>0){
@@ -523,7 +523,7 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   const etd = bkg.crcf9_bl_etd || bkg.cr49f_etd || '';
   const ship = bkg.cr49f_main_ship_name || '';
   const lcNo = siData?.cr49f_lc_no || '';
-  const pod  = siData?.crcf9_pod_bl1 || '';
+  const pod  = siData?.crcf9_pod_bl1 || siData?.crcf9_place_of_delivery_1 || '';
   const voNoRaw = siData?.crcf9_vo_no || '';
   const voNo = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
   const poVo = siData?.crcf9_po_vo || '';
@@ -610,11 +610,14 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   items.forEach((item, idx)=>{
     const balesStr = item.bales>0 ? item.bales : 'XX';
     const mtStr    = item.nwMt>0  ? item.nwMt.toFixed(2) : 'XX.XX';
-    const prodName = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
+    const prodRaw  = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
+    // productname に "EX JAPAN" が含まれる場合は追加しない
+    const hasExJapan = /EX\s+JAPAN/i.test(prodRaw);
+    const prodName = hasExJapan ? prodRaw : prodRaw + ' EX JAPAN';
     const hsLine   = item.hsCode || '';
 
     const goodsText =
-`${prodName} EX JAPAN, ${balesStr}BALES, ${mtStr}MT
+`${prodName}, ${balesStr}BALES, ${mtStr}MT
 L/C NO. ${lcNo}
 PURCHASE ORDER ${poVo}
 VO NUMBER ${voNo}
@@ -644,6 +647,18 @@ FAX: ${agent.fax}`.trim();
     `;
     goodsContainer.appendChild(div);
   });
+
+  // Invoice Value 自動計算 (単価 × 重量MT の合計)
+  const cifAuto = items.reduce((sum, item)=>{
+    const price = parseFloat(item.price) || 0;
+    const nwMt  = item.nwMt || 0;
+    return sum + price * nwMt;
+  }, 0);
+  if(cifAuto > 0){
+    document.getElementById('cifInput').value = cifAuto.toFixed(2);
+    document.getElementById('insCalcNote').textContent = '自動計算済 (手動修正可)';
+    updateInsuranceCalc();
+  }
 
   // 結果表示
   document.getElementById('stepResult').style.display = 'block';
