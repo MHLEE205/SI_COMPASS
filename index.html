@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.6</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.7</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -186,7 +186,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.6</div>
+    <div class="hdr-ver" id="header-sub">v1.7</div>
   </div>
 </div>
 
@@ -263,15 +263,24 @@ input,select,textarea{font-family:inherit;}
       <div class="result-card-title">
         🗂️ 画面① — 保険基本情報
       </div>
-      <!-- ICC 条件セレクター -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;
-           background:var(--surface2);border-radius:7px;border:1px solid var(--border);">
-        <span style="font-size:11px;color:var(--text2);font-weight:600;">保険条件 (Conditions)</span>
-        <select class="icc-select" id="iccSelect" onchange="onIccChange()">
-          <option value="A">ICC (A) — All Risk</option>
-          <option value="C">ICC (C) — Limited</option>
-        </select>
-        <span id="iccBadge" class="icc-badge icc-badge-a">LC判別: ICC(A)</span>
+      <!-- ICC 条件 + Local Vessel セレクター -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:8px 10px;
+           background:var(--surface2);border-radius:7px;border:1px solid var(--border);flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--text2);font-weight:600;">保険条件</span>
+          <select class="icc-select" id="iccSelect" onchange="onIccChange()">
+            <option value="A">ICC (A) — All Risk</option>
+            <option value="C">ICC (C) — Limited</option>
+          </select>
+          <span id="iccBadge" class="icc-badge icc-badge-a">LC判別: ICC(A)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;border-left:1px solid var(--border);padding-left:12px;">
+          <span style="font-size:11px;color:var(--text2);font-weight:600;">Local Vessel</span>
+          <select class="icc-select" id="localVesselSelect" onchange="refreshScreen1()">
+            <option value="LAND CONVEYANCE">LAND CONVEYANCE</option>
+            <option value="ANY CONVEYANCE">ANY CONVEYANCE</option>
+          </select>
+        </div>
       </div>
       <div class="result-grid" id="screen1Grid"></div>
       <div style="display:none;" id="screen1Text"></div>
@@ -281,6 +290,15 @@ input,select,textarea{font-family:inherit;}
     <div class="result-card">
       <div class="result-card-title">
         🚢 画面② — 本船・航路情報
+      </div>
+      <!-- Thence to セレクター -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:6px 10px;
+           background:var(--surface2);border-radius:7px;border:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--text2);font-weight:600;">Thence to</span>
+        <select class="icc-select" id="thenceToSelect" onchange="refreshScreen2()">
+          <option value="">— (空欄)</option>
+          <option value="INTERIOR PLACE BY ANY CONVEYANCE">INTERIOR PLACE BY ANY CONVEYANCE</option>
+        </select>
       </div>
       <div class="result-grid" id="screen2Grid"></div>
       <div style="display:none;" id="screen2Text"></div>
@@ -366,6 +384,7 @@ BREAKAGE, BENDING, DENTING & SCRATCHING.`,
 
 let lcJsonData = null;        // LC JSON 取込データ
 let currentResultData = null; // 現在の検索結果 (Goods再描画用)
+const _copyMap = {};           // renderGrid コピー値格納 (特殊文字対策)
 
 /* ── LC JSON 取込 ── */
 function handleLcDrop(e){
@@ -431,6 +450,20 @@ function showLcMsg(msg, type){
   el.innerHTML = `<span style="${cls}">${escapeHtml(msg)}</span>`;
 }
 
+function refreshScreen2(){
+  if(!currentResultData) return;
+  const thenceTo = document.getElementById('thenceToSelect')?.value || '';
+  // 현재 s2Items를 _copyMap 보존하며 재렌더링
+  // ship/etd/pol/pod는 currentResultData에 없으므로 DOM에서 읽어온 값 유지
+  // → s2Grid는 이미 렌더된 상태이므로 Thence to 행만 찾아서 업데이트
+  const rows = document.querySelectorAll('#screen2Grid .rg-label-fixed');
+  rows.forEach(label => {
+    if(label.textContent.trim() === 'Thence to'){
+      label.nextElementSibling.textContent = thenceTo || '—';
+    }
+  });
+}
+
 function onIccChange(){
   const iccType = document.getElementById('iccSelect')?.value || 'A';
   // badge更新
@@ -452,7 +485,8 @@ function onIccChange(){
 function refreshScreen1(){
   const ivNo = document.getElementById('resInvoice')?.textContent || '';
   if(!ivNo) return;
-  const iccType = document.getElementById('iccSelect')?.value || 'A';
+  const iccType    = document.getElementById('iccSelect')?.value       || 'A';
+  const localVessel = document.getElementById('localVesselSelect')?.value || 'LAND CONVEYANCE';
   const s1Items = [
     ['保険種目',                     '輸出',                   false],
     ['Open Policy No.',              OPEN_POLICY_NO,           false],
@@ -460,7 +494,7 @@ function refreshScreen1(){
     ['Invoice No.',                  ivNo,                     true],
     ['Claim, if any, payable at/in', 'DESTINATION',            false],
     ['Conditions',                   ICC_CONDITIONS[iccType],  false],
-    ['Local Vessel or Conveyance',   'LAND CONVEYANCE',        false],
+    ['Local Vessel or Conveyance',   localVessel,              false],
   ];
   renderGrid('screen1Grid', s1Items);
   document.getElementById('screen1Text').textContent = ivNo;
@@ -716,23 +750,23 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
     ['Invoice No.',                  ivNo,                     true],
     ['Claim, if any, payable at/in', 'DESTINATION',            false],
     ['Conditions',                   ICC_CONDITIONS[iccType],  false],
-    ['Local Vessel or Conveyance',   'LAND CONVEYANCE',        false],
+    ['Local Vessel or Conveyance',   document.getElementById('localVesselSelect')?.value || 'LAND CONVEYANCE', false],
   ];
   renderGrid('screen1Grid', s1Items);
   // screen1Text は Invoice No. のみ (コピー用)
   document.getElementById('screen1Text').textContent = ivNo;
 
   // ── 画面② ──
+  const thenceTo = document.getElementById('thenceToSelect')?.value || '';
   const s2Items = [
     ['From (interior port)', 'INTERIOR PLACE IN JAPAN', false],
     ['Ship or Vessel',       ship,                      true],
     ['Sailing on or about',  etdFormatted,              true],
     ['Voyage at and from',   pol,                       true],
     ['Voyage to/via',        pod,                       true],
-    ['Thence to',            '',                        false],
+    ['Thence to',            thenceTo,                  false],
   ];
   renderGrid('screen2Grid', s2Items);
-  // screen2Text は不使用 (各項目個別コピー)
   document.getElementById('screen2Text').textContent = '';
 
   // ── 画面③ Goods テキスト — データ整理 ──
@@ -903,28 +937,30 @@ function sumAllCt(ctByDetail){
 function renderGrid(containerId, items){
   // items: [label, value] or [label, value, copyable]
   const el = document.getElementById(containerId);
-  let html = '';
+  let h = '';
   items.forEach(([label, val, copyable], i)=>{
     const uid = `rg_${containerId}_${i}`;
     if(copyable && val && val !== '—'){
-      html += `
+      _copyMap[uid] = val; // 特殊文字に安全な格納
+      h += `
         <div class="rg-label-copy">${escapeHtml(label)} <span class="copy-tag">📋 要入力</span></div>
         <div class="rg-val-copyable">
           <span class="rg-text" style="white-space:pre-wrap;">${escapeHtml(val)}</span>
           <button class="btn btn-copy" style="flex-shrink:0;" id="${uid}_btn"
-            onclick="copyVal(${JSON.stringify(val)},'${uid}_btn')">📋</button>
+            onclick="copyMapVal('${uid}')">📋</button>
         </div>`;
     } else {
-      html += `
+      h += `
         <div class="rg-label-fixed">${escapeHtml(label)}</div>
         <div class="rg-val-fixed" style="white-space:pre-wrap;">${escapeHtml(val||'—')}</div>`;
     }
   });
-  el.innerHTML = html;
+  el.innerHTML = h;
 }
 
-function copyVal(text, btnId){
-  copyToClipboard(text, btnId);
+function copyMapVal(uid){
+  const text = _copyMap[uid];
+  if(text !== undefined) copyToClipboard(text, uid+'_btn');
 }
 
 function formatDateForInsurance(dateStr){
