@@ -1,668 +1,311 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | CERTIFICATE TOOL v1.32</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.0</title>
 <style>
-/* ── Base ── */
+/* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
   --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --surface3:#2a2f46;
   --border:#2e3350; --border2:#3d4466;
   --text:#e2e8f0; --text2:#8892a4; --text3:#4a5568;
-  --muted:#8892a4; --muted2:#4a5568;
   --accent:#4f8ef7; --accent2:#3fb950;
-  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
-  --purple:#a371f7; --info:#38bdf8; --radius:10px;
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --teal:#2dd4bf;
+  --radius:10px;
 }
 [data-theme="light"] {
   --bg:#f4f6fb; --surface:#ffffff; --surface2:#f0f4ff; --surface3:#e8edf7;
   --border:#d1d5db; --text:#111827; --text2:#6b7280; --text3:#9ca3af;
-  --muted:#6b7280; --muted2:#9ca3af;
-}
-[data-theme="leenai"] {
-  --bg:#FAFDF7; --surface:#ffffff; --surface2:#F2F9EE; --surface3:#E8F5E0;
-  --border:#D0E8C0; --text:#1A3A0E; --text2:#4A6A3A; --text3:#8AAA80;
-  --muted:#4A6A3A; --muted2:#8AAA80;
-  --accent:#2D5A1E; --accent2:#2E72C8;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
 button{cursor:pointer;font-family:inherit;}
-input,select{font-family:inherit;}
+input,select,textarea{font-family:inherit;}
 
-/* ── Header ── */
+/* ── ヘッダー ── */
 .hdr{
   background:var(--surface);border-bottom:1px solid var(--border);
-  padding:0 20px;display:flex;align-items:center;gap:14px;
+  padding:0 20px;display:flex;align-items:center;gap:12px;
   position:sticky;top:0;z-index:200;height:50px;
 }
-.logo{font-size:17px;font-weight:800;letter-spacing:1px;}
+.logo{font-size:16px;font-weight:800;letter-spacing:1px;}
 .logo span{color:var(--accent);}
-.hdr-sys{font-size:10px;color:var(--text2);background:var(--surface2);
+.hdr-badge{font-size:10px;color:var(--text2);background:var(--surface2);
   border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-weight:600;}
 .hdr-title{font-size:12px;font-weight:600;color:var(--text2);}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 .hdr-ver{font-size:11px;color:#fff;background:var(--accent);padding:2px 9px;border-radius:12px;font-weight:700;}
-.theme-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;}
+.theme-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);
+  padding:4px 10px;border-radius:6px;font-size:11px;}
 .theme-btn:hover{border-color:var(--accent);color:var(--text);}
-.auth-chip{
-  font-size:12px;padding:4px 12px;border-radius:20px;
-  border:1px solid var(--border);background:var(--surface2);
-  display:flex;align-items:center;gap:6px;
-  font-family:'Yu Gothic','Noto Sans JP','Microsoft YaHei','Malgun Gothic','Segoe UI',sans-serif;
-}
-.auth-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);}
-.auth-chip.connected .dot{background:var(--accent2);}
-.auth-chip.connected{border-color:var(--accent2);color:var(--accent2);}
+.auth-chip{font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface2);display:flex;align-items:center;gap:6px;}
+.auth-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--text3);}
+.auth-chip.connected .dot{background:var(--ok);}
+.auth-chip.connected{border-color:var(--ok);color:var(--ok);}
 
-/* ── Auth bar ── */
-.auth-bar{
-  background:var(--surface2);border-bottom:1px solid var(--border);
-  padding:8px 20px;display:flex;align-items:center;gap:12px;
-}
-.auth-bar.hidden{display:none;}
+/* ── レイアウト ── */
+.main{padding:20px;max-width:900px;margin:0 auto;}
 
-/* ── Tabs ── */
-.tabs{
-  display:flex;background:var(--surface);border-bottom:1px solid var(--border);
-  padding:0 20px;overflow-x:auto;
-}
-.tab{
-  padding:10px 16px;cursor:pointer;font-size:13px;color:var(--muted);
-  border-bottom:2px solid transparent;white-space:nowrap;
-  transition:all .15s;user-select:none;
-}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-.tab:hover:not(.active){color:var(--text);}
-.tab.needed{color:var(--text);background:rgba(79,142,247,0.07);}
-.tab.needed.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent;}
-.tab.na{opacity:0.35;}
-.tab.na:hover{opacity:0.55;}
-.tab-badge{
-  font-size:10px;background:var(--surface3);border-radius:8px;
-  padding:1px 5px;margin-left:4px;color:var(--muted);
-}
-.tab.active .tab-badge{background:rgba(88,166,255,.2);color:var(--accent);}
+/* ── カード ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;}
+.badge-step{background:rgba(79,142,247,.18);color:var(--accent);}
+.badge-ok{background:rgba(34,197,94,.18);color:var(--ok);}
+.badge-warn{background:rgba(245,158,11,.18);color:var(--warn);}
 
-/* ── Main ── */
-.main{padding:20px;max-width:1100px;margin:0 auto;}
-.panel{display:none;}
-.panel.active{display:block;}
-
-/* ── Buttons ── */
-.btn{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:7px 14px;border-radius:8px;border:1px solid transparent;
-  font-size:12px;font-weight:600;font-family:inherit;transition:all .15s;white-space:nowrap;cursor:pointer;
-}
-.btn-primary{background:var(--accent);color:#000;border-color:var(--accent);}
+/* ── ボタン ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
+  border-radius:8px;border:1px solid transparent;
+  font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap;cursor:pointer;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
 .btn-primary:hover{opacity:.85;}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed;}
 .btn-secondary{background:var(--surface2);color:var(--text);border-color:var(--border);}
 .btn-secondary:hover{border-color:var(--accent);}
-.btn-success{background:var(--accent2);color:#000;border-color:var(--accent2);}
-.btn-success:hover{opacity:.85;}
-.btn-warn{background:var(--warn);color:#000;border-color:var(--warn);}
-.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger);}
-.btn-sm{padding:4px 10px;font-size:12px;}
-.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);}
-.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+.btn-copy{background:rgba(79,142,247,.12);color:var(--accent);border-color:rgba(79,142,247,.3);
+  font-size:11px;padding:5px 10px;}
+.btn-copy:hover{background:rgba(79,142,247,.22);}
+.btn-copy.copied{background:rgba(34,197,94,.15);color:var(--ok);border-color:rgba(34,197,94,.4);}
 
-/* ── Form ── */
-.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
-.form-group{display:flex;flex-direction:column;gap:4px;}
-.form-group label{font-size:11px;color:var(--muted);}
-.input-field{
-  background:var(--surface2);border:1px solid var(--border);
-  color:var(--text);border-radius:6px;padding:8px 12px;font-size:13px;
-  min-width:200px;
-}
-.input-field:focus{outline:none;border-color:var(--accent);}
-.input-field.sm{min-width:120px;}
-.input-field.lg{min-width:280px;}
+/* ── フォーム ── */
+.form-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;}
+.fi{background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);padding:8px 11px;font-size:13px;outline:none;width:100%;}
+.fi:focus{border-color:var(--accent);}
+.fi::placeholder{color:var(--text3);}
 
-/* ── Cards ── */
-.card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:8px;padding:16px;margin-bottom:14px;
-}
-.card-title{
-  font-size:11px;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.6px;margin-bottom:12px;padding-bottom:8px;
-  border-bottom:1px solid var(--border);display:flex;
-  align-items:center;justify-content:space-between;
-}
-.data-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
-.data-item label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px;}
-.data-item span{font-size:13px;font-weight:600;color:var(--text);}
-.data-item span.lc{font-size:11px;color:var(--accent);}
-.data-item span.mono{font-family:monospace;font-size:12px;}
-.data-item span.miss{color:var(--danger);}
+/* ── アラート ── */
+.alert{padding:10px 13px;border-radius:8px;font-size:12px;margin-bottom:10px;}
+.alert-info{background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);color:var(--accent);}
+.alert-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--ok);}
+.alert-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--danger);}
+.alert-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--warn);}
 
-/* ── Status ── */
-.status{
-  padding:8px 12px;border-radius:6px;font-size:12px;
-  margin-bottom:10px;display:none;
-}
-.status.show{display:block;}
-.status.info{background:rgba(88,166,255,.1);color:var(--accent);}
-.status.ok{background:rgba(63,185,80,.1);color:var(--accent2);}
-.status.err{background:rgba(248,81,73,.1);color:var(--danger);}
-.status.warn{background:rgba(210,153,34,.1);color:var(--warn);}
-.spin{display:inline-block;animation:spin .7s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
+/* ── 結果グリッド ── */
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;margin-bottom:12px;}
+.result-card-title{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent);
+  display:flex;align-items:center;justify-content:space-between;}
+.result-grid{display:grid;grid-template-columns:180px 1fr;gap:6px 12px;align-items:start;}
+.rg-label{font-size:11px;color:var(--text2);font-weight:600;padding-top:3px;}
+.rg-val{font-size:12px;color:var(--text);padding:3px 0;word-break:break-all;}
+.rg-copy{background:var(--surface2);border:1px solid var(--border);border-radius:5px;
+  padding:5px 9px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-all;
+  font-family:'Consolas','Courier New',monospace;line-height:1.5;}
 
-/* ── Check results ── */
-.check-wrap{display:flex;flex-direction:column;gap:3px;margin-top:10px;}
-.check-item{
-  display:flex;gap:8px;align-items:flex-start;
-  padding:5px 8px;border-radius:4px;font-size:12px;line-height:1.4;
-}
-.check-item.ok{background:rgba(63,185,80,.08);color:var(--accent2);}
-.check-item.ng{background:rgba(248,81,73,.1);color:var(--danger);}
-.check-item.warn{background:rgba(210,153,34,.1);color:var(--warn);}
-.check-item.info{background:rgba(88,166,255,.08);color:var(--accent);}
-.ck-badge{
-  font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;
-  flex-shrink:0;margin-top:1px;
-}
-.ok .ck-badge{background:var(--accent2);color:#000;}
-.ng .ck-badge{background:var(--danger);color:#fff;}
-.warn .ck-badge{background:var(--warn);color:#000;}
-.info .ck-badge{background:var(--accent);color:#000;}
-.ck-text{flex:1;}
+/* ── Goodsテキスト ── */
+.goods-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:12px;font-size:12px;font-family:'Consolas','Courier New',monospace;
+  white-space:pre-wrap;word-break:break-all;line-height:1.6;color:var(--text);}
+.goods-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.goods-label{font-size:12px;font-weight:700;color:var(--text2);}
 
-/* ── Doc actions ── */
-.doc-actions{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-.doc-section-title{
-  font-size:12px;color:var(--muted);font-weight:600;
-  text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;
-  display:flex;align-items:center;gap:8px;
+/* ── ローディング ── */
+.loading-overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,17,23,.75);
+  z-index:9999;align-items:center;justify-content:center;
 }
-.doc-section-title::after{
-  content:'';flex:1;height:1px;background:var(--border);
-}
+.loading-overlay.show{display:flex;}
+.loading-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:28px 36px;text-align:center;}
+.spinner{width:32px;height:32px;border:3px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+  margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-size:13px;color:var(--text2);}
 
-/* ── LC JSON info ── */
-.lc-json-row{
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:6px;padding:10px 14px;display:flex;
-  align-items:center;gap:12px;font-size:12px;margin-bottom:14px;
-}
-.lc-json-row .lc-label{color:var(--muted);}
-.lc-json-row .lc-val{color:var(--accent);font-weight:600;}
-.lc-json-row .lc-bank{
-  background:var(--surface3);padding:2px 8px;border-radius:4px;
-  color:var(--text);font-size:11px;
-}
+/* ── ステップ進捗 ── */
+.progress-steps{display:flex;gap:4px;margin-bottom:6px;}
+.ps{font-size:10px;padding:2px 8px;border-radius:10px;color:var(--text3);background:var(--surface2);}
+.ps.active{background:rgba(79,142,247,.2);color:var(--accent);font-weight:700;}
+.ps.done{background:rgba(34,197,94,.15);color:var(--ok);}
 
-/* ── N/A panel ── */
-.na-panel{
-  padding:40px;text-align:center;color:var(--muted);font-size:14px;
-  background:var(--surface2);border-radius:8px;border:1px solid var(--border);
-  margin-bottom:16px;
-}
+/* ── アイテムセパレーター ── */
+.item-sep{border:none;border-top:1px dashed var(--border2);margin:12px 0;}
 
-/* ══════════════════════════
-   CERTIFICATE DOCUMENT STYLES
-   ══════════════════════════ */
-.cert-wrap{
-  background:#f8f8f8;border:1px solid #ccc;border-radius:4px;
-  padding:4px;margin-bottom:16px;
-}
-.cert-doc{
-  background:#fff;color:#000;
-  font-family:'Times New Roman',serif;
-  padding:26px 32px 30px;max-width:760px;margin:0 auto;
-  font-size:13px;line-height:1.65;
-}
-.cert-hdr-bar{
-  border-bottom:2px solid #000;padding-bottom:9px;margin-bottom:5px;
-  line-height:1.3;
-}
-.cert-hdr-company{font-weight:700;font-size:13.5px;letter-spacing:.3px;}
-.cert-hdr-addr{font-size:11.5px;color:#333;}
-.cert-hdr-contact{font-size:11.5px;color:#333;}
-.cert-title{
-  text-align:center;font-size:16px;font-weight:700;
-  text-decoration:underline;text-transform:uppercase;
-  margin:16px 0 6px;
-}
-.cert-meta{text-align:right;font-size:12px;margin-bottom:10px;line-height:1.3;}
-.cert-meta div{margin-bottom:2px;}
-.cert-to-block{margin-bottom:12px;line-height:1.3;}
-.cert-to-name{font-weight:700;font-size:13px;}
-.cert-to-addr{font-size:12px;}
-.cert-confirm-bold{
-  font-weight:700;font-size:13px;margin:12px 0;line-height:1.5;
-}
-.cert-items{margin:10px 0;}
-.cert-item{
-  display:flex;margin-bottom:5px;font-size:13px;
-}
-.cert-bullet{margin-right:6px;flex-shrink:0;}
-.cert-item-label{min-width:178px;font-weight:500;}
-.cert-item-val{flex:1;}
-.cert-bottom{font-size:12.5px;margin-top:12px;}
-.cert-spacer{display:none;}
-#doc-qq{line-height:1.64;}
-.cert-sig-block{text-align:right;margin-top:20px;}
-.cert-sig-company{font-weight:700;font-size:13.5px;}
-.cert-sig-line{
-  border-bottom:1px solid #000;width:170px;
-  margin:55px 0 5px auto;
-}
-.cert-sig-name{font-size:13px;}
-.cert-exporter-label{font-weight:700;text-decoration:underline;margin-bottom:2px;font-size:13px;}
-.cert-party-block{margin-bottom:10px;font-size:12.5px;line-height:1.35;}
+/* ── CIF入力 ── */
+.cif-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.cif-label{font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap;}
+.cif-input{background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);padding:6px 10px;font-size:13px;outline:none;width:160px;}
+.cif-input:focus{border-color:var(--accent);}
+.cif-note{font-size:11px;color:var(--text3);}
 
-/* Bene cert specific */
-.bene-lc-stmt{
-  font-weight:700;font-size:13px;margin:14px 0;line-height:1.63;
-}
-.bene-email-block{margin:12px 0;font-size:13px;}
-.bene-email-line{margin-bottom:3px;}
-.bene-email-label{font-weight:700;}
-.bene-table-wrap{margin:10px 0;}
-.bene-tbl{
-  width:100%;border-collapse:collapse;font-size:11.5px;
-}
-.bene-tbl th{
-  background:#333;color:#fff;padding:4px 7px;
-  text-align:left;font-size:11px;white-space:nowrap;
-}
-.bene-tbl td{
-  padding:4px 7px;border:1px solid #ccc;
-}
-.bene-tbl-header td{
-  background:#555;color:#fff;font-weight:700;font-size:11px;
-}
-.bene-amount-block{font-size:13px;margin:10px 0;line-height:1.73;}
+/* ── フッター ── */
+.powered{text-align:center;font-size:10px;color:var(--text3);
+  padding:16px 0 8px;letter-spacing:0.4px;}
 
-/* Free time specific */
-.ft-declare{
-  font-weight:700;font-size:13px;margin:16px 0;line-height:1.63;
-}
-
-/* ── Print ── */
 @media print{
-  /* margin 6mm以下 → Chrome/Edgeのブラウザヘッダー/フッター（日付・URL）を非表示 */
-  @page{size:A4;margin:6mm 12mm;}
-  body{background:#fff!important;color:#000!important;}
-  .hdr,.tabs,.auth-bar,.doc-actions,.card,.check-wrap,.status,.lc-json-row,
-  .doc-section-title,.btn,.form-row,.no-print{display:none!important;}
-  .main{padding:0!important;max-width:100%!important;}
-  .panel{display:none!important;}
-  .panel.active{display:block!important;}
-  .cert-wrap{border:none;padding:0;margin-bottom:0;
-    break-after:page;page-break-after:always;break-inside:avoid;}
-  .cert-wrap:last-child{break-after:avoid;page-break-after:avoid;}
-  .cert-doc{display:block;}
-  .na-panel{display:none!important;}
-  /* Powered by — 全ページ最下部に固定（Wordのフッターと同じ動作） */
-  .powered{
-    display:block!important;
-    position:fixed;bottom:0;left:0;right:0;
-    text-align:center;font-size:9px;color:#888;
-    padding:3px 0;border-top:0.5px solid #ccc;
-    font-family:'Times New Roman',serif;letter-spacing:.3px;
-    background:#fff;
-  }
-  /* 全書類: flexで서명을 페이지 하단に固定 */
-  .cert-doc{
-    display:flex;flex-direction:column;
-    min-height:calc(297mm - 12mm - 12mm);
-    padding-bottom:14px;
-  }
-  .cert-spacer{flex:1;}
-  /* ESL: 1ページをflex で埋める */
-  .esl-doc{
-    display:flex;flex-direction:column;
-    min-height:calc(297mm - 12mm - 12mm);
-    padding-bottom:14px;
-  }
-  .esl-spacer{flex:1;}
-  /* ESL署名ライン: 標準と同じ65px */
-  .esl-doc .cert-sig-line{margin-top:65px;}
-}
-
-/* ── ESL Document ── */
-.esl-doc{
-  background:#fff;color:#000;
-  font-family:'Times New Roman',serif;
-  padding:16px 28px 16px;max-width:760px;margin:0 auto;
-  font-size:13px;line-height:1.6;
-}
-.esl-title{
-  text-align:center;font-size:17px;font-weight:700;
-  text-transform:uppercase;margin:10px 0 8px;letter-spacing:.3px;
-}
-.esl-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:2px 0 5px;}
-.esl-tbl td{border:1px solid #000;padding:1px 5px;vertical-align:middle;}
-.esl-label{font-weight:700;width:42%;}
-.esl-spacer{display:none;}
-
-/* ── Misc ── */
-.divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
-.tag{
-  display:inline-block;font-size:10px;padding:1px 6px;
-  border-radius:4px;margin-left:4px;
-}
-.tag-mufg{background:rgba(88,166,255,.15);color:var(--accent);}
-.tag-vcb{background:rgba(210,153,34,.15);color:var(--warn);}
-.tag-aspex{background:rgba(163,113,247,.15);color:var(--purple);}
-.tag-ok{background:rgba(63,185,80,.15);color:var(--accent2);}
-.tag-ng{background:rgba(248,81,73,.15);color:var(--danger);}
-.powered{
-  text-align:center;padding:16px;color:var(--muted2);font-size:11px;
-  border-top:1px solid var(--border);margin-top:30px;
+  .hdr,.card:not(.result-card),.powered{display:none!important;}
 }
 </style>
 </head>
 <body>
 
-<!-- ── Header ── -->
+<!-- ヘッダー -->
 <div class="hdr">
   <div class="logo">LEEN<span>AI</span></div>
-  <span class="hdr-sys">SYS-D-04</span>
-  <span class="hdr-title">CERTIFICATE TOOL</span>
-  <span id="importerBadge" style="font-size:12px;font-weight:700;color:var(--warn)">[—]</span>
+  <div class="hdr-badge">SYS-D-04</div>
+  <div class="hdr-title">保険入力支援ツール</div>
   <div class="hdr-right">
-    <span class="hdr-ver" id="header-sub">v1.32</span>
     <div class="auth-chip" id="authChip">
-      <span class="dot"></span>
-      <span id="authLabel">Not connected</span>
+      <div class="dot"></div>
+      <span id="authLabel">未ログイン</span>
     </div>
+    <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <button class="btn btn-sm btn-primary" id="loginBtn" onclick="startLogin()">🔑 Login</button>
-    <button class="btn btn-sm btn-ghost" id="logoutBtn" onclick="doLogout()" style="display:none">Logout</button>
+    <div class="hdr-ver" id="header-sub">v1.0</div>
   </div>
 </div>
 
-<!-- ── Auth bar (shown when not connected) ── -->
-<div class="auth-bar" id="authBar">
-  <span style="font-size:12px;color:var(--muted)">🔒 COMPASS 認証が必要です。Login ボタンで Dataverse に接続してください。</span>
+<!-- ローディング -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-msg" id="loadingMsg">データ取得中...</div>
+  </div>
 </div>
 
-<!-- ── Tabs ── -->
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('search')">📋 Invoice 検索 / Load</div>
-  <div class="tab" id="tab-verify" onclick="switchTab('verify')">🔍 LC 検証<span class="tab-badge" id="b-verify">—</span></div>
-  <div class="tab" id="tab-qq" onclick="switchTab('qq')">① Q&amp;Q<span class="tab-badge" id="b-qq">—</span></div>
-  <div class="tab" id="tab-co" onclick="switchTab('co')">② CO<span class="tab-badge" id="b-co">—</span></div>
-  <div class="tab" id="tab-bene" onclick="switchTab('bene')">③ Beneficiary Cert<span class="tab-badge" id="b-bene">—</span></div>
-  <div class="tab" id="tab-ft" onclick="switchTab('ft')">④ Free Time Cert<span class="tab-badge" id="b-ft">—</span></div>
-  <div class="tab" id="tab-esl" onclick="switchTab('esl')" style="display:none">⑤ ESL<span class="tab-badge" id="b-esl">—</span></div>
-  <div class="tab" id="tab-mail" onclick="switchTab('mail')" style="display:none">📧 COPY OF MAIL<span class="tab-badge" id="b-mail">—</span></div>
-</div>
-
-<!-- ═══ MAIN ═══ -->
+<!-- メイン -->
 <div class="main">
 
-  <!-- ══ TAB 1: Search ══ -->
-  <div class="panel active" id="panel-search">
-    <div class="card">
-      <div class="card-title">
-        Invoice No. 検索 — COMPASS データ自動取得
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-secondary" id="modeSelectBtn" onclick="switchSearchMode('select')">📋 会社から選択</button>
-          <button class="btn btn-sm btn-ghost" id="modeManualBtn" onclick="switchSearchMode('manual')">✏️ 直接入力</button>
+  <!-- STEP 1: ログイン -->
+  <div class="card" id="stepLogin">
+    <div class="card-title">
+      <span class="badge badge-step">STEP 1</span>
+      COMPASS ログイン (Dataverse)
+    </div>
+    <div class="alert alert-info">
+      🔑 COMPASS (Microsoft Dataverse) に接続して保険入力データを自動取得します。<br>
+      「ログイン」ボタンをクリックして認証してください。
+    </div>
+    <button class="btn btn-primary" onclick="handleAuthClick()">🔑 COMPASSにログイン</button>
+  </div>
+
+  <!-- STEP 2: Invoice No入力 -->
+  <div class="card" id="stepSearch" style="display:none;">
+    <div class="card-title">
+      <span class="badge badge-step">STEP 2</span>
+      Invoice No. で検索
+    </div>
+    <div class="alert alert-ok" id="loginOkMsg"></div>
+    <div class="form-row">
+      <input class="fi" id="invoiceInput" placeholder="例) NMG2607-07" maxlength="30"
+        onkeydown="if(event.key==='Enter')fetchData()">
+      <button class="btn btn-primary" id="searchBtn" onclick="fetchData()" style="min-width:80px;">🔍 取得</button>
+    </div>
+    <div id="searchMsg"></div>
+  </div>
+
+  <!-- STEP 3: 結果 -->
+  <div id="stepResult" style="display:none;">
+
+    <!-- 概要バー -->
+    <div class="card" style="padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:700;">📄 <span id="resInvoice"></span></div>
+        <div style="font-size:12px;color:var(--text2);">契約: <span id="resContract"></span></div>
+        <div style="font-size:12px;color:var(--text2);">LC: <span id="resLcNo" style="color:var(--accent);"></span></div>
+        <button class="btn btn-secondary" onclick="resetSearch()" style="margin-left:auto;font-size:11px;">🔄 再検索</button>
+      </div>
+    </div>
+
+    <!-- 画面1: 保険基本情報 -->
+    <div class="result-card">
+      <div class="result-card-title">
+        🗂️ 画面① — 保険基本情報
+        <button class="btn btn-copy" onclick="copySection('screen1Text','copyBtn1')" id="copyBtn1">📋 コピー</button>
+      </div>
+      <div class="result-grid" id="screen1Grid"></div>
+      <div style="display:none;" id="screen1Text"></div>
+    </div>
+
+    <!-- 画面2: 船名・航路 -->
+    <div class="result-card">
+      <div class="result-card-title">
+        🚢 画面② — 本船・航路情報
+        <button class="btn btn-copy" onclick="copySection('screen2Text','copyBtn2')" id="copyBtn2">📋 コピー</button>
+      </div>
+      <div class="result-grid" id="screen2Grid"></div>
+      <div style="display:none;" id="screen2Text"></div>
+    </div>
+
+    <!-- 画面3: Goods & 保険金額 -->
+    <div class="result-card">
+      <div class="result-card-title">
+        📦 画面③ — Goods 記載テキスト
+      </div>
+      <div id="goodsContainer"></div>
+      <!-- CIF金額入力 -->
+      <div class="cif-row" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+        <div class="cif-label">💰 Invoice Value (CIF金額)</div>
+        <input class="cif-input" id="cifInput" type="number" placeholder="0.00" step="0.01"
+          oninput="updateInsuranceCalc()">
+        <div class="cif-note" id="insCalcNote">金額を入力すると保険金額 (×1.10) を表示します</div>
+      </div>
+      <div id="insCalcResult" style="display:none;margin-top:8px;" class="alert alert-ok"></div>
+    </div>
+
+    <!-- 画面3: 保険金額欄 入力ガイド -->
+    <div class="result-card">
+      <div class="result-card-title">📋 画面③ — 保険金額欄 入力内容</div>
+      <div class="result-grid">
+        <div class="rg-label">保険金額通貨記号</div><div class="rg-val">US$ (米ドル)</div>
+        <div class="rg-label">Cargo 保険金額指定</div><div class="rg-val">CIF の <strong>10.00</strong> (10%Up = 110%)</div>
+        <div class="rg-label">ICIF の</div><div class="rg-val">0.00</div>
+        <div class="rg-label">Invoice Value 選択</div><div class="rg-val">☑ CIF (C&I, DDU, DDP, CIP, DAP, DAT)</div>
+        <div class="rg-label">金額 (CIF)</div>
+        <div class="rg-val" style="display:flex;align-items:center;gap:8px;">
+          <span id="cifDisplayVal" style="font-weight:700;color:var(--accent);">— (上記フォームに入力)</span>
+          <button class="btn btn-copy" onclick="copyCifVal('copyBtnCif')" id="copyBtnCif" style="display:none;">📋</button>
         </div>
       </div>
-
-      <!-- ── 업체에서 선택 모드 ── -->
-      <div id="selectModePanel">
-        <div class="status" id="selectorStatus"></div>
-        <div class="form-row" style="flex-wrap:nowrap;align-items:flex-end;gap:10px;">
-          <div class="form-group">
-            <label>会社</label>
-            <select class="input-field" id="buyerSelect" onchange="onBuyerChange()" style="min-width:230px;">
-              <option value="">-- ロード中... --</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Invoice No. <span style="font-size:10px;color:var(--muted);">ETD 降順</span></label>
-            <select class="input-field" id="ivSelect" style="min-width:220px;">
-              <option value="">-- 会社選択後 --</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="loadSelectedIv()">🔍 Load</button>
-        </div>
-      </div>
-
-      <!-- ── 직접 입력 모드 (기존) ── -->
-      <div id="manualModePanel" style="display:none;">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Invoice No.</label>
-            <input class="input-field" id="ivInput" type="text" placeholder="例: NSG2606-04 / NA2607-01"
-              onkeydown="if(event.key==='Enter')loadInvoice()">
-          </div>
-          <button class="btn btn-primary" id="loadBtn" onclick="loadInvoice()">🔍 Load</button>
-        </div>
-      </div>
-
-      <div class="status" id="loadStatus"></div>
     </div>
 
-    <!-- COMPASS data preview -->
-    <div class="card" id="dataCard" style="display:none">
-      <div class="card-title">
-        COMPASS データ
-        <span id="bankTag" class="tag"></span>
-      </div>
-      <div class="data-grid" id="dataGrid"></div>
-    </div>
-
-    <!-- POD 選択 (v1.2: 複数PODの場合ラジオボタン) -->
-    <div class="card" id="podCard" style="display:none">
-      <div class="card-title">Port of Destination (POD) 選択</div>
-      <div id="podRadioWrap" style="padding:4px 0;"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">※ 複数PODが設定されています。書類に使用するPODを選択してください。</div>
-    </div>
-
-    <!-- LC JSON load (v1.3: SharePoint自動取得) -->
-    <div class="card" id="lcCard" style="display:none">
-      <div class="card-title">LC JSON — 検証 &amp; PO情報</div>
-      <div id="lcAutoStatus" class="status info show"><span class="spin">⟳</span> SharePoint から LC JSON 自動取得中...</div>
-      <div class="form-row" style="margin-top:4px;">
-        <button class="btn btn-secondary btn-sm" onclick="openLcJson()">📂 手動読込 (fallback)</button>
-        <div style="font-size:11px;color:var(--muted);align-self:center;">
-          自動取得失敗時のみ — LRS-XXXX_{LC番号}.json
-        </div>
-      </div>
-      <div id="lcJsonStatus" class="status info show">⚠️ LC JSON 未読込。LC 検証はスキップされます（書類生成は可能）。</div>
-      <div id="lcJsonInfo" style="display:none"></div>
-      <div class="status" id="lcLoadStatus"></div>
-    </div>
-
-    <!-- Container list -->
-    <div class="card" id="ctCard" style="display:none">
-      <div class="card-title">Container 実績<span id="ctSummary" style="font-weight:600;color:var(--text);margin-left:8px;font-size:12px;text-transform:none;letter-spacing:0;"></span></div>
-      <div style="overflow-x:auto;">
-        <table id="ctTable" style="width:100%;border-collapse:collapse;font-size:11.5px;">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border);color:var(--muted);">
-              <th style="padding:5px 8px;text-align:left;">#</th>
-              <th style="padding:5px 8px;text-align:left;">Container No.</th>
-              <th style="padding:5px 8px;text-align:left;">Seal No.</th>
-              <th style="padding:5px 8px;text-align:right;">Bales</th>
-              <th style="padding:5px 8px;text-align:right;">N/W (MT)</th>
-              <th style="padding:5px 8px;text-align:left;">Type</th>
-            </tr>
-          </thead>
-          <tbody id="ctBody"></tbody>
-          <tfoot id="ctFoot"></tfoot>
-        </table>
-      </div>
-    </div>
-
-    <div id="goPanel" style="display:none;margin-top:4px;">
-      <button class="btn btn-success" onclick="buildAll()">✅ 全書類を生成 → 各タブへ</button>
-
-    </div>
-  </div><!-- /panel-search -->
-
-  <!-- ══ TAB: Q&Q ══ -->
-  <div class="panel" id="panel-qq">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('qq')">🖨 印刷 (Q&amp;Q × 3部)</button>
-      <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部用意して署名・捺印</span>
-    </div>
-    <div id="qq-content">
-      <div class="doc-section-title">Certificate of Quality and Quantity</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>
-    </div>
-  </div>
-
-  <!-- ══ TAB: CO ══ -->
-  <div class="panel" id="panel-co">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('co')">🖨 印刷 (CO × 3部)</button>
-      <span style="font-size:11px;color:var(--muted);align-self:center;">印刷後、3部用意して署名・捺印</span>
-    </div>
-    <div id="co-content">
-      <div class="doc-section-title">Certificate of Origin</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>
-    </div>
-  </div>
-
-  <!-- ══ TAB 3: Bene Cert ══ -->
-  <div class="panel" id="panel-bene">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('bene')">🖨 印刷 (1部)</button>
-    </div>
-    <div class="doc-section-title">Beneficiary's Certificate</div>
-    <div class="cert-wrap"><div class="cert-doc" id="doc-bene"></div></div>
-  </div>
-
-  <!-- ══ TAB 4: Free Time ══ -->
-  <div class="panel" id="panel-ft">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('ft')">🖨 印刷 (1部)</button>
-    </div>
-    <div id="ft-content">
-      <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>
-    </div>
-  </div>
-
-  <!-- ══ TAB: ESL ══ -->
-  <div class="panel" id="panel-esl">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('esl')">🖨 印刷 (1部)</button>
-    </div>
-    <div class="doc-section-title">Exporter's Statement Letter</div>
-    <div class="cert-wrap"><div class="esl-doc" id="doc-esl"></div></div>
-  </div>
-
-  <!-- ══ TAB: COPY OF MAIL ══ -->
-  <div class="panel" id="panel-mail">
-    <div class="doc-actions no-print">
-      <button class="btn btn-success" onclick="printDocs('mail')">🖨 印刷 (1部)</button>
-    </div>
-    <div class="doc-section-title">Copy of Mail</div>
-    <div class="cert-wrap"><div class="cert-doc" id="doc-mail"></div></div>
-  </div>
-
-  <!-- ══ TAB 5: LC Verify ══ -->
-  <div class="panel" id="panel-verify">
-    <div class="card">
-      <div class="card-title">LC 条件 vs 書類 検証結果</div>
-      <div id="verifyStatus" class="status info show">📋 全書類を生成後、LC JSON 読込済みの場合に自動検証されます。</div>
-      <div class="check-wrap" id="checkList"></div>
-    </div>
-  </div>
-
+  </div><!-- /stepResult -->
 </div><!-- /main -->
 
 <div class="powered">✦ Powered by LEENAI Automation System</div>
 
-<!-- ═══════════════════════════════════════
-     JAVASCRIPT
-═══════════════════════════════════════ -->
 <script>
-'use strict';
-
-/* ── Constants ── */
+/* ══════════════════════════════════════════
+   SECTION: CONSTANTS
+══════════════════════════════════════════ */
 const CLIENT_ID    = 'f071a165-5e9b-44bf-b6a1-baba654524db';
 const TENANT_ID    = 'a56988ff-c2b8-4df8-9727-889ad4205198';
+const DV_URL       = 'https://orgde512c6f.crm7.dynamics.com';
+const DV_API       = `${DV_URL}/api/data/v9.2`;
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
-const DV_BASE      = 'https://orgde512c6f.crm7.dynamics.com/api/data/v9.2/';
-const SCOPE_DV     = 'https://orgde512c6f.crm7.dynamics.com/user_impersonation openid profile';
-const SCOPE_GRAPH  = 'https://graph.microsoft.com/Files.Read';
-const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0/';
-const SP_DRIVE_ID  = 'b!ZK58_9YllU-vETQD3Xz0TbOInXbVCXJHnQ2280KJBArFLeM_18EgRbSeoO-TW__U';
+const SCOPE        = `${DV_URL}/user_impersonation openid profile email offline_access`;
 
-/* v1.09: 서명권자 이메일 → 서명란 이름 매핑 */
-const SIGNER_MAP = {
-  'kx_zhan@leenearcorp.com': 'KAIXIN ZHAN',
-  'm_oba@leenearcorp.com':   'OBA',
-  'ja_lee@leenearcorp.com':  'JUAH LEE',
-  'sw_park@leenearcorp.com': 'PARK',
+// 保険固定値
+const OPEN_POLICY_NO  = 'NOP-117206';
+const ASSURED         = 'LEENEAR CORPORATION';
+const INS_RATIO       = 110; // %
+
+// インドネシア Agent マスター (固定)
+const INDONESIA_AGENT = {
+  name:    'P.T. ASURANSI MSIG INDONESIA',
+  address: 'SUMMITMAS 11, 15TH FLOOR, JALAN JEND. SUDIRMAN, KAV. 61-62, JAKARTA 12190, INDONESIA',
+  tel:     '(62) 21-252-3110',
+  fax:     '(62)21-252-4084',
 };
 
-/* ── State ── */
-const S = {
-  token: null,
-  tokenExpiry: 0,
-  userName: '',
-  // Loaded data
-  booking: null,
-  containers: [],
-  saleContract: null,
-  saleDetail: null,
-  siHeader: null,
-  siDetail: null,
-  carrierName: '',
-  // Derived
-  totalNwMt: 0,
-  totalBales: 0,
-  containerCount: 0,
-  amountUsd: 0,
-  // LC JSON
-  lcJson: null,
-  lcDateEn: '',
-  poNo: '',
-  poDate: '',
-  goodsType: 'OCC',
-  docs46A: [],
-  addCond47A: '',
-  // Invoice No
-  invoiceNo: '',
-  // v1.2 additions
-  podList: [],
-  selectedPod: '',
-  allText: '',
-  poVo: '',
-  voNo: '',
-  siDetailList: [],       // v1.09: S/I Detail 전건 (품목별 productname 취득용)
-  signerName: 'PARK',     // v1.09: 로그인 이메일 기반 자동 결정, DEFAULT = PARK
-  // v1.3 additions
-  graphToken: null,
-  graphTokenExpiry: 0,
-  // v1.07: multi-importer
-  importer: 'SAIGON',   // 'SAIGON' | 'ASPEX' | 'MEGA_SURYA' | 'XSD'
-  contractQuantityMt: 0, // v1.27: cr49f_quantity (계약 총량 MT)
-  // v1.29: 업체 선택 모드
-  buyerMap: {},          // buyer_id → buyer_name
-  buyerBookingsMap: {},  // buyerName → [{invoiceNo, etd}]
-  // v1.22: MEGA_SURYA additions
-  allSiList: [],
-  importerName: '',
-  importerAddr: '',
-  importerTel: '',
-  importerFax: '',
-  portOfDischarge: '',
-  invoiceText1: '',
-  beneCertText: '',
-  importerEmail: '',
+/* ══════════════════════════════════════════
+   SECTION: AUTH STATE
+══════════════════════════════════════════ */
+let S = {
+  accessToken: null, refreshToken: null, tokenExpiry: 0,
+  userName: '', userEmail: ''
 };
 
-/* ══════════════
-   PKCE OAuth
-══════════════ */
+/* ══════════════════════════════════════════
+   SECTION: PKCE OAUTH
+══════════════════════════════════════════ */
 function b64url(buf){
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
@@ -670,2736 +313,474 @@ function b64url(buf){
 async function sha256(str){
   return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
 }
-function randomStr(len=64){
-  const arr=new Uint8Array(len);
-  crypto.getRandomValues(arr);
-  return b64url(arr).slice(0,len);
+function randomStr(n=64){
+  const a=new Uint8Array(n); crypto.getRandomValues(a); return b64url(a).slice(0,n);
 }
 
 async function startLogin(){
-  const verifier=randomStr(64);
-  const challenge=b64url(await sha256(verifier));
-  const state=randomStr(16);
-  sessionStorage.setItem('pkce_v',verifier);
-  sessionStorage.setItem('pkce_s',state);
-  sessionStorage.setItem('pkce_type','dv');
-  const p=new URLSearchParams({
-    client_id:CLIENT_ID,response_type:'code',
-    redirect_uri:REDIRECT_URI,scope:SCOPE_DV,
-    state,code_challenge:challenge,code_challenge_method:'S256',
-    prompt:'select_account'
+  const verifier = randomStr(64);
+  const challenge = b64url(await sha256(verifier));
+  const state = randomStr(16);
+  sessionStorage.setItem('pkce_v', verifier);
+  sessionStorage.setItem('pkce_s', state);
+  const p = new URLSearchParams({
+    client_id: CLIENT_ID, response_type: 'code',
+    redirect_uri: REDIRECT_URI, scope: SCOPE,
+    state, code_challenge: challenge, code_challenge_method: 'S256',
+    prompt: 'select_account'
   });
-  location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
-}
-
-async function startGraphAuth(){
-  const verifier=randomStr(64);
-  const challenge=b64url(await sha256(verifier));
-  const state=randomStr(16);
-  sessionStorage.setItem('pkce_v',verifier);
-  sessionStorage.setItem('pkce_s',state);
-  sessionStorage.setItem('pkce_type','graph');
-  const p=new URLSearchParams({
-    client_id:CLIENT_ID,response_type:'code',
-    redirect_uri:REDIRECT_URI,scope:SCOPE_GRAPH,
-    state,code_challenge:challenge,code_challenge_method:'S256'
-  });
-  location.href=`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
-}
-
-function restoreDvSession(){
-  const token=sessionStorage.getItem('dv_token');
-  const expiry=Number(sessionStorage.getItem('dv_expiry')||'0');
-  const user=sessionStorage.getItem('dv_user')||'';
-  const signer=sessionStorage.getItem('dv_signer')||'PARK';
-  if(token && expiry>Date.now()){
-    S.token=token; S.tokenExpiry=expiry; S.userName=user;
-    S.signerName=signer;
-    setConnected(true);
-  }else{
-    setConnected(false);
-  }
+  location.href = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
 async function handleCallback(){
-  const p=new URLSearchParams(location.search);
-  const code=p.get('code');
-  const type=sessionStorage.getItem('pkce_type')||'dv';
-
-  if(!code){
-    const err=p.get('error');
-    if(err && type==='graph'){
-      history.replaceState({},'',location.pathname);
-      sessionStorage.removeItem('pkce_type');
-      restoreDvSession();
-    }
-    return;
-  }
-
-  history.replaceState({},'',location.pathname);
-  const verifier=sessionStorage.getItem('pkce_v');
-  if(!verifier){showStatus('loadStatus','err','セッション期限切れ。再ログインしてください。');return;}
-
+  const p = new URLSearchParams(location.search);
+  const code = p.get('code');
+  if(!code) return;
+  history.replaceState({}, '', location.pathname);
+  const verifier = sessionStorage.getItem('pkce_v');
+  if(!verifier){ showMsg('searchMsg','セッション期限切れ。再ログインしてください。','err'); return; }
   try{
-    const res=await fetch(
+    const res = await fetch(
       `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
-      {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-       body:new URLSearchParams({
-         client_id:CLIENT_ID,grant_type:'authorization_code',
-         code,redirect_uri:REDIRECT_URI,code_verifier:verifier,
-         scope:type==='graph'?SCOPE_GRAPH:SCOPE_DV
-       })}
-    );
-    const data=await res.json();
-
-    if(type==='graph'){
-      sessionStorage.removeItem('pkce_type');
-      if(data.access_token){
-        S.graphToken=data.access_token;
-        S.graphTokenExpiry=Date.now()+(data.expires_in-60)*1000;
+      { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({
+          client_id:CLIENT_ID, grant_type:'authorization_code',
+          code, redirect_uri:REDIRECT_URI, code_verifier:verifier, scope:SCOPE
+        })
       }
-      restoreDvSession();
-      return;
-    }
-
+    );
+    const data = await res.json();
     if(!data.access_token) throw new Error(data.error_description||'Token取得失敗');
-    S.token=data.access_token;
-    S.tokenExpiry=Date.now()+(data.expires_in-60)*1000;
+    S.accessToken  = data.access_token;
+    S.refreshToken = data.refresh_token||null;
+    S.tokenExpiry  = Date.now()+(data.expires_in-60)*1000;
     if(data.id_token){
       try{
-        const pl=JSON.parse(new TextDecoder('utf-8').decode(Uint8Array.from(atob(data.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))));
-        S.userName=pl.name||pl.preferred_username||'';
-        // v1.09: 서명권자 자동 결정
-        const email=(pl.preferred_username||pl.email||'').toLowerCase();
-        S.signerName=SIGNER_MAP[email]||'PARK';
+        const pl = JSON.parse(atob(data.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        S.userName  = pl.name||'';
+        S.userEmail = pl.email||pl.preferred_username||'';
       }catch(e){}
     }
-    sessionStorage.setItem('dv_token',S.token);
-    sessionStorage.setItem('dv_expiry',String(S.tokenExpiry));
-    sessionStorage.setItem('dv_user',S.userName);
-    sessionStorage.setItem('dv_signer',S.signerName);
-    await startGraphAuth();
+    onLoginSuccess();
   }catch(e){
-    showStatus('loadStatus','err','認証エラー: '+e.message);
+    alert('認証エラー: '+e.message);
   }
 }
 
-function setConnected(ok){
-  const chip=document.getElementById('authChip');
-  const label=document.getElementById('authLabel');
-  const loginBtn=document.getElementById('loginBtn');
-  const logoutBtn=document.getElementById('logoutBtn');
-  const authBar=document.getElementById('authBar');
-  if(ok){
-    chip.classList.add('connected');
-    label.textContent=S.userName||'Connected';
-    loginBtn.style.display='none';
-    logoutBtn.style.display='';
-    authBar.classList.add('hidden');
-    // v1.29: 로그인 후 자동으로 업체 선택기 초기화
-    setTimeout(()=>initBuyerSelector(), 200);
-  }else{
-    chip.classList.remove('connected');
-    label.textContent='Not connected';
-    loginBtn.style.display='';
-    logoutBtn.style.display='none';
-    authBar.classList.remove('hidden');
-  }
+async function checkToken(){
+  if(S.accessToken && Date.now()<S.tokenExpiry) return true;
+  if(!S.refreshToken){ alert('再ログインしてください。'); return false; }
+  const res = await fetch(
+    `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
+    { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        client_id:CLIENT_ID, grant_type:'refresh_token',
+        refresh_token:S.refreshToken, scope:SCOPE
+      })
+    }
+  );
+  const data = await res.json();
+  if(!data.access_token) return false;
+  S.accessToken  = data.access_token;
+  S.tokenExpiry  = Date.now()+(data.expires_in-60)*1000;
+  if(data.refresh_token) S.refreshToken = data.refresh_token;
+  return true;
 }
 
-function doLogout(){
-  S.token=null;S.tokenExpiry=0;S.userName='';
-  S.graphToken=null;S.graphTokenExpiry=0;
-  sessionStorage.clear();
-  setConnected(false);
+function handleAuthClick(){
+  if(S.accessToken) return; // すでにログイン済み
+  startLogin();
 }
 
-function updateTabHighlights(){
-  const docTabs=['qq','co','bene','ft','esl','mail'];
-  // 一旦全部リセット
-  docTabs.forEach(id=>{
-    const el=document.getElementById('tab-'+id);
-    if(el){el.classList.remove('needed','na');}
+function onLoginSuccess(){
+  document.getElementById('authChip').classList.add('connected');
+  document.getElementById('authLabel').textContent = S.userName || 'ログイン済み';
+  document.getElementById('authBtn').style.display = 'none';
+  document.getElementById('stepLogin').style.display = 'none';
+  document.getElementById('stepSearch').style.display = 'block';
+  document.getElementById('loginOkMsg').textContent =
+    `✅ ${S.userName} でログインしました。Invoice No. を入力して検索してください。`;
+}
+
+/* ══════════════════════════════════════════
+   SECTION: DATAVERSE GET
+══════════════════════════════════════════ */
+async function dvGet(path){
+  if(!(await checkToken())) throw new Error('認証が必要です');
+  const url = path.startsWith('http') ? path : `${DV_API}/${path}`;
+  const res = await fetch(url, {
+    headers:{
+      'Authorization':`Bearer ${S.accessToken}`,
+      'OData-MaxVersion':'4.0','OData-Version':'4.0','Accept':'application/json',
+    }
   });
-  if(S.importer==='ASPEX'){
-    // ASPEX: bene + esl 必要 / qq + co + ft 不要
-    ['bene','esl'].forEach(id=>{
-      const el=document.getElementById('tab-'+id);
-      if(el) el.classList.add('needed');
+  if(!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(`API ${res.status}: ${err?.error?.message||''}`);
+  }
+  return res.json();
+}
+
+/* ══════════════════════════════════════════
+   SECTION: MAIN FETCH
+══════════════════════════════════════════ */
+async function fetchData(){
+  const ivNo = document.getElementById('invoiceInput').value.trim().toUpperCase();
+  if(!ivNo){ showMsg('searchMsg','Invoice No. を入力してください。','warn'); return; }
+
+  showLoading('データ取得中 (1/5) — Booking 検索...');
+  try{
+    // ① Booking 取得
+    const bkgRes = await dvGet(
+      `cr49f_bookings?$filter=${encodeURIComponent(`cr49f_invoice_no eq '${ivNo}'`)}` +
+      `&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,cr49f_etd,crcf9_bl_etd,` +
+      `_cr49f_sale_contract_id_value,_cr49f_region_japan_id_value`
+    );
+    if(!bkgRes.value||bkgRes.value.length===0){
+      hideLoading();
+      showMsg('searchMsg',`Invoice No. "${ivNo}" の Booking が見つかりませんでした。`,'err');
+      return;
+    }
+    const bkg = bkgRes.value[0];
+    const bkgGuid = bkg.cr49f_bookingid;
+    const scGuid  = bkg._cr49f_sale_contract_id_value;
+    const rjGuid  = bkg._cr49f_region_japan_id_value;
+
+    // ② POL 取得 (region_japan)
+    let pol = 'ANY PORT IN JAPAN';
+    if(rjGuid){
+      updateLoading('データ取得中 (2/5) — POL 取得...');
+      try{
+        const rj = await dvGet(`crcf9_region_japans(${rjGuid})?$select=crcf9_pol`);
+        if(rj.crcf9_pol) pol = rj.crcf9_pol.trim() + ', JAPAN';
+      }catch(e){ /* POL取得失敗時はデフォルト値を使用 */ }
+    }
+
+    // ③ 販売契約 取得
+    updateLoading('データ取得中 (3/5) — 販売契約 取得...');
+    let scNo = '', tradeTerms = 'CIF';
+    if(scGuid){
+      try{
+        const sc = await dvGet(
+          `cr49f_sale_contracts(${scGuid})?$select=cr49f_sale_contract_no,cr49f_terms_conditions,cr49f_pay_cls`
+        );
+        scNo       = sc.cr49f_sale_contract_no || '';
+        tradeTerms = sc.cr49f_terms_conditions || 'CIF';
+      }catch(e){}
+    }
+
+    // ④ S/I ヘッダー 取得 (sino=1)
+    updateLoading('データ取得中 (4/5) — S/I データ取得...');
+    let siData = null, siGuid = '';
+    if(scGuid){
+      const siRes = await dvGet(
+        `cr49f_s_is?$filter=${encodeURIComponent(`_cr49f_sale_contract_id_value eq ${scGuid} and crcf9_sino eq 1`)}` +
+        `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_vo_no,crcf9_po_vo,` +
+        `crcf9_consignee,crcf9_notify_party,crcf9_address,crcf9_pod_bl1,` +
+        `crcf9_payment_classification,crcf9_payment_deadline`
+      );
+      if(siRes.value&&siRes.value.length>0){
+        siData = siRes.value[0];
+        siGuid = siData.cr49f_s_iid;
+      }
+    }
+
+    // ⑤ S/I Detail + Container 取得
+    updateLoading('データ取得中 (5/5) — コンテナ・明細 取得...');
+    let siDetails = [], containers = [];
+    if(siGuid){
+      const detRes = await dvGet(
+        `crcf9_s_i_details?$filter=${encodeURIComponent(`_crcf9_s_i_id_value eq ${siGuid}`)}` +
+        `&$select=crcf9_s_i_detailid,crcf9_productname,crcf9_hs_code,crcf9_price,` +
+        `crcf9_sale_detail_id,_crcf9_sale_detail_id_value`
+      );
+      siDetails = detRes.value||[];
+    }
+    const ctRes = await dvGet(
+      `crcf9_container_informations?$filter=${encodeURIComponent(`_crcf9_booking_id_value eq ${bkgGuid}`)}` +
+      `&$select=crcf9_container_informationid,crcf9_container_no,crcf9_quantity,crcf9_n_w,` +
+      `_crcf9_sale_detail_id_value`
+    );
+    containers = ctRes.value||[];
+
+    hideLoading();
+
+    // ⑥ 画面描画
+    renderResult({
+      ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, containers
     });
-    ['qq','co','ft','mail'].forEach(id=>{
-      const el=document.getElementById('tab-'+id);
-      if(el) el.classList.add('na');
-    });
-  } else if(S.importer==='MEGA_SURYA'){
-    // MEGA_SURYA: co + bene + esl 必要 / qq + ft 不要
-    ['co','bene','esl'].forEach(id=>{
-      const el=document.getElementById('tab-'+id);
-      if(el) el.classList.add('needed');
-    });
-    ['qq','ft','mail'].forEach(id=>{
-      const el=document.getElementById('tab-'+id);
-      if(el) el.classList.add('na');
+
+  }catch(e){
+    hideLoading();
+    showMsg('searchMsg','エラー: '+e.message,'err');
+  }
+}
+
+/* ══════════════════════════════════════════
+   SECTION: RENDER
+══════════════════════════════════════════ */
+function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, containers}){
+  const etd = bkg.crcf9_bl_etd || bkg.cr49f_etd || '';
+  const ship = bkg.cr49f_main_ship_name || '';
+  const lcNo = siData?.cr49f_lc_no || '';
+  const pod  = siData?.crcf9_pod_bl1 || '';
+  const voNoRaw = siData?.crcf9_vo_no || '';
+  const voNo = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
+  const poVo = siData?.crcf9_po_vo || '';
+
+  // 国判定 (INDONESIA固定 for now)
+  const country = 'INDONESIA';
+  const agent = INDONESIA_AGENT;
+
+  // ETD整形
+  const etdFormatted = formatDateForInsurance(etd);
+
+  // 概要バー
+  document.getElementById('resInvoice').textContent = ivNo;
+  document.getElementById('resContract').textContent = scNo;
+  document.getElementById('resLcNo').textContent = lcNo;
+
+  // ── 画面① ──
+  const s1Items = [
+    ['保険種目',       '輸出'],
+    ['Open Policy No.', OPEN_POLICY_NO],
+    ['Assured(s)',      ASSURED],
+    ['Invoice No.',     ivNo],
+    ['Claim, if any, payable at/in', 'DESTINATION'],
+    ['Conditions',     'INSTITUTE CARGO CLAUSES (A)\nEXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /\nTHEFT, PILFERAGE & NON-DELIVERY /\nBREAKAGE, BENDING, DENTING & SCRATCHING.'],
+    ['Local Vessel or Conveyance', 'LAND CONVEYANCE'],
+  ];
+  renderGrid('screen1Grid', s1Items);
+  document.getElementById('screen1Text').textContent = s1Items.map(([l,v])=>`${l}: ${v}`).join('\n');
+
+  // ── 画面② ──
+  const s2Items = [
+    ['From (interior port)',  'INTERIOR PLACE IN JAPAN'],
+    ['Ship or Vessel',        ship],
+    ['Sailing on or about',   etdFormatted],
+    ['Voyage at and from',    pol],
+    ['Voyage to/via',         pod],
+    ['Thence to',             ''],
+  ];
+  renderGrid('screen2Grid', s2Items);
+  document.getElementById('screen2Text').textContent = s2Items.filter(([,v])=>v).map(([l,v])=>`${l}: ${v}`).join('\n');
+
+  // ── 画面③ Goods テキスト ──
+  const goodsContainer = document.getElementById('goodsContainer');
+  goodsContainer.innerHTML = '';
+
+  // sale_detail_id → container グルーピング
+  const ctByDetail = {};
+  containers.forEach(ct=>{
+    const key = ct._crcf9_sale_detail_id_value || 'unknown';
+    if(!ctByDetail[key]) ctByDetail[key]={bales:0, nwKg:0};
+    ctByDetail[key].bales += (ct.crcf9_quantity||0);
+    ctByDetail[key].nwKg  += (ct.crcf9_n_w||0);
+  });
+
+  // アイテムがない場合のフォールバック (全コンテナ合計)
+  const detailKeys = Object.keys(ctByDetail);
+  const items = [];
+
+  if(siDetails.length>0){
+    siDetails.forEach(det=>{
+      const sdId = det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '';
+      const ct = ctByDetail[sdId] || {bales:0, nwKg:0};
+      // sale_detail_idがマッチしない場合は全コンテナ合算
+      const useCt = ct.nwKg>0 ? ct : sumAllCt(ctByDetail);
+      items.push({
+        productname: det.crcf9_productname||'',
+        hsCode:      det.crcf9_hs_code||'',
+        price:       det.crcf9_price||'',
+        bales:       useCt.bales,
+        nwMt:        useCt.nwKg/1000,
+        sdId,
+      });
     });
   } else {
-    const VIETNAM_IMPORTERS=['TKC_KRAFT','DONG_TIEN','NEW_TOYO','TAN_QUANG','VAN_DIEM','XUAN_MAI'];
-    if(VIETNAM_IMPORTERS.includes(S.importer)){
-      // ベトナム業者: 基本 co=needed, qq=needed (TKC_KRAFT除く), ft/esl/mail=na
-      const docTabsVN=['qq','co','bene','ft','esl','mail'];
-      docTabsVN.forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.remove('needed','na');
-      });
-      // COO は常に needed
-      document.getElementById('tab-co')?.classList.add('needed');
-      // Q&Q: TKC_KRAFT 除く
-      if(S.importer !== 'TKC_KRAFT'){
-        document.getElementById('tab-qq')?.classList.add('needed');
-      } else {
-        document.getElementById('tab-qq')?.classList.add('na');
-      }
-      // Bene Cert: DT/VD/XM
-      if(['DONG_TIEN','VAN_DIEM','XUAN_MAI'].includes(S.importer)){
-        document.getElementById('tab-bene')?.classList.add('needed');
-      } else {
-        document.getElementById('tab-bene')?.classList.add('na');
-      }
-      // COPY OF MAIL: TAN_QUANG のみ
-      if(S.importer === 'TAN_QUANG'){
-        document.getElementById('tab-mail')?.classList.add('needed');
-      } else {
-        document.getElementById('tab-mail')?.classList.add('na');
-      }
-      // ft/esl: 常に na
-      ['ft','esl'].forEach(id=>{
-        document.getElementById('tab-'+id)?.classList.add('na');
-      });
-    } else if(S.importer==='XSD'||S.importer==='SIAM_KRAFT'){
-      // XSD / SIAM_KRAFT: qq + co + bene 필요 / ft + esl + mail 불필요
-      ['qq','co','bene'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('needed');
-      });
-      ['ft','esl','mail'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('na');
-      });
-    } else if(S.importer==='GENERIC'){
-      const allDocTabs=['qq','co','bene','ft','esl','mail'];
-      allDocTabs.forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.remove('needed','na');
-      });
-      ['co','qq'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('needed');
-      });
-      ['bene','ft','mail'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('na');
-      });
-      const eslEl=document.getElementById('tab-esl');
-      if(eslEl) eslEl.classList.add(isIndonesiaDest()?'needed':'na');
-    } else {
-      // SAIGON: qq + co + bene + ft 必要 / esl 不要
-      ['qq','co','bene','ft'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('needed');
-      });
-      ['esl','mail'].forEach(id=>{
-        const el=document.getElementById('tab-'+id);
-        if(el) el.classList.add('na');
-      });
-    }
+    // S/I Detailなし → コンテナ合算のみ
+    const total = sumAllCt(ctByDetail);
+    items.push({
+      productname:'', hsCode:'', price:'',
+      bales:total.bales, nwMt:total.nwKg/1000, sdId:'all'
+    });
+  }
+
+  // Goods ブロック生成
+  items.forEach((item, idx)=>{
+    const balesStr = item.bales>0 ? item.bales : 'XX';
+    const mtStr    = item.nwMt>0  ? item.nwMt.toFixed(2) : 'XX.XX';
+    const prodName = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
+    const hsLine   = item.hsCode || '';
+
+    const goodsText =
+`${prodName} EX JAPAN, ${balesStr}BALES, ${mtStr}MT
+L/C NO. ${lcNo}
+PURCHASE ORDER ${poVo}
+VO NUMBER ${voNo}
+${hsLine}
+FOR ${INS_RATIO} PERCENT OF CIF VALUE. INSURANCE MUST COVERING ALL RISK (ICC A)
+INSTITUTE WAR CLAUSE. INSTITUTE STRIKES, RIOTS, AND CIVIL COMMOTIONS CLAUSES,
+CLAIM PAYABLE IN ${country} IN THE CURRENCY OF THE LC,
+NAME OF AGENT: ${agent.name}
+ADDRESS: ${agent.address}
+TEL: ${agent.tel}
+FAX: ${agent.fax}`.trim();
+
+    const blockId = `goodsText${idx}`;
+    const btnId   = `copyBtnGoods${idx}`;
+
+    const div = document.createElement('div');
+    div.innerHTML = `
+      ${idx>0?'<hr class="item-sep">':''}
+      <div class="goods-header">
+        <div class="goods-label">
+          ${items.length>1 ? `📦 アイテム ${idx+1}: ${prodName}` : '📦 Goods テキスト (貨物明細欄に貼り付け)'}
+        </div>
+        <button class="btn btn-copy" onclick="copySection('${blockId}','${btnId}')" id="${btnId}">📋 コピー</button>
+      </div>
+      <div class="goods-box" id="${blockId}_display">${escapeHtml(goodsText)}</div>
+      <div style="display:none;" id="${blockId}">${goodsText}</div>
+    `;
+    goodsContainer.appendChild(div);
+  });
+
+  // 結果表示
+  document.getElementById('stepResult').style.display = 'block';
+  document.getElementById('stepResult').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function sumAllCt(ctByDetail){
+  let bales=0, nwKg=0;
+  Object.values(ctByDetail).forEach(v=>{bales+=v.bales; nwKg+=v.nwKg;});
+  return {bales, nwKg};
+}
+
+function renderGrid(containerId, items){
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(([label, val])=>`
+    <div class="rg-label">${escapeHtml(label)}</div>
+    <div class="rg-val" style="white-space:pre-wrap;">${escapeHtml(val||'—')}</div>
+  `).join('');
+}
+
+function formatDateForInsurance(dateStr){
+  if(!dateStr) return '';
+  try{
+    const d = new Date(dateStr);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth()+1).padStart(2,'0');
+    const day = String(d.getUTCDate()).padStart(2,'0');
+    return `${y}年${m}月${day}日`;
+  }catch(e){ return dateStr; }
+}
+
+/* ══════════════════════════════════════════
+   SECTION: CIF計算
+══════════════════════════════════════════ */
+function updateInsuranceCalc(){
+  const cif = parseFloat(document.getElementById('cifInput').value);
+  const resEl = document.getElementById('insCalcResult');
+  const dispEl = document.getElementById('cifDisplayVal');
+  const copyBtnCif = document.getElementById('copyBtnCif');
+  if(!isNaN(cif) && cif>0){
+    const insAmt = (cif*INS_RATIO/100).toFixed(2);
+    resEl.style.display='block';
+    resEl.textContent = `✅ 保険金額 = USD ${Number(cif).toLocaleString('en-US',{minimumFractionDigits:2})} × ${INS_RATIO}% = USD ${Number(insAmt).toLocaleString('en-US',{minimumFractionDigits:2})}`;
+    dispEl.textContent = `USD ${Number(cif).toLocaleString('en-US',{minimumFractionDigits:2})}`;
+    copyBtnCif.style.display='inline-flex';
+  } else {
+    resEl.style.display='none';
+    dispEl.textContent='— (上記フォームに入力)';
+    copyBtnCif.style.display='none';
   }
 }
 
-function updateThemeBtn(theme){
-  const btn=document.getElementById('themeToggleBtn');
-  if(!btn) return;
-  const labels={dark:'🌙 ダーク',light:'☀️ ライト',leenai:'🌿 LEENAI'};
-  btn.textContent=labels[theme]||'🌙 ダーク';
+function copyCifVal(btnId){
+  const cif = parseFloat(document.getElementById('cifInput').value);
+  if(!isNaN(cif) && cif>0){
+    const txt = Number(cif).toLocaleString('en-US',{minimumFractionDigits:2});
+    copyToClipboard(txt, btnId);
+  }
 }
+
+/* ══════════════════════════════════════════
+   SECTION: CLIPBOARD
+══════════════════════════════════════════ */
+function copySection(textElId, btnId){
+  const el = document.getElementById(textElId);
+  if(!el) return;
+  copyToClipboard(el.textContent || el.innerText, btnId);
+}
+
+function copyToClipboard(text, btnId){
+  navigator.clipboard.writeText(text).then(()=>{
+    if(!btnId) return;
+    const btn = document.getElementById(btnId);
+    if(!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = '✅ コピー済';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(()=>{ alert('コピーに失敗しました。手動でコピーしてください。'); });
+}
+
+/* ══════════════════════════════════════════
+   SECTION: UI HELPERS
+══════════════════════════════════════════ */
+function showLoading(msg){ 
+  document.getElementById('loadingMsg').textContent=msg;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function updateLoading(msg){ document.getElementById('loadingMsg').textContent=msg; }
+function hideLoading(){ document.getElementById('loadingOverlay').classList.remove('show'); }
+
+function showMsg(elId, msg, type='info'){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const cls = {info:'alert-info',ok:'alert-ok',err:'alert-err',warn:'alert-warn'}[type]||'alert-info';
+  el.innerHTML = `<div class="alert ${cls}">${escapeHtml(msg)}</div>`;
+}
+
+function escapeHtml(s){ 
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); 
+}
+
+function resetSearch(){
+  document.getElementById('stepResult').style.display='none';
+  document.getElementById('invoiceInput').value='';
+  document.getElementById('searchMsg').innerHTML='';
+  document.getElementById('cifInput').value='';
+  document.getElementById('insCalcResult').style.display='none';
+  document.getElementById('cifDisplayVal').textContent='— (上記フォームに入力)';
+  document.getElementById('copyBtnCif').style.display='none';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ══════════════════════════════════════════
+   SECTION: THEME
+══════════════════════════════════════════ */
 function toggleTheme(){
-  const html=document.documentElement;
-  const current=html.getAttribute('data-theme')||'dark';
-  const order=['dark','light','leenai'];
-  const next=order[(order.indexOf(current)+1)%order.length];
-  html.setAttribute('data-theme',next);
-  localStorage.setItem('leenai_theme',next);
+  const cur = document.documentElement.getAttribute('data-theme')||'dark';
+  const next = cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('leenai_theme', next);
   updateThemeBtn(next);
 }
+function updateThemeBtn(theme){
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = theme==='dark'?'🌙 ダーク':'☀️ ライト';
+}
 (function(){
-  const saved=localStorage.getItem('leenai_theme')||'dark';
-  document.documentElement.setAttribute('data-theme',saved);
+  const saved = localStorage.getItem('leenai_theme')||'dark';
+  document.documentElement.setAttribute('data-theme', saved);
   document.addEventListener('DOMContentLoaded',()=>updateThemeBtn(saved));
 })();
 
-/* ══════════════
-   Dataverse API
-══════════════ */
-async function graphGet(path){
-  if(!S.graphToken) throw new Error('Graph未認証');
-  if(Date.now()>S.graphTokenExpiry) throw new Error('Graphセッション期限切れ');
-  const res=await fetch(`${GRAPH_BASE}${path}`,{
-    headers:{'Authorization':`Bearer ${S.graphToken}`,'Accept':'application/json'}
-  });
-  if(!res.ok){
-    const e=await res.json().catch(()=>({}));
-    throw new Error(`Graph ${res.status}: ${e?.error?.message||res.statusText}`);
-  }
-  return res.json();
-}
-
-async function dvGet(path){
-  if(!S.token) throw new Error('未認証。ログインしてください。');
-  if(Date.now()>S.tokenExpiry) throw new Error('セッション期限切れ。再ログインしてください。');
-  const res=await fetch(`${DV_BASE}${path}`,{
-    headers:{
-      'Authorization':`Bearer ${S.token}`,
-      'OData-MaxVersion':'4.0','OData-Version':'4.0',
-      'Accept':'application/json',
-      'Prefer':'odata.include-annotations="OData.Community.Display.V1.FormattedValue"'
-    }
-  });
-  if(!res.ok){
-    const e=await res.json().catch(()=>({}));
-    throw new Error(`API ${res.status}: ${e?.error?.message||res.statusText}`);
-  }
-  return res.json();
-}
-
-/* ══════════════
-   Importer Detection (v1.07)
-══════════════ */
-function detectImporter(ivNo){
-  const up=ivNo.toUpperCase();
-  if(up.startsWith('NSG')) return 'SAIGON';
-  if(up.startsWith('NA'))  return 'ASPEX';
-  if(up.startsWith('NMG')) return 'MEGA_SURYA';
-  if(up.startsWith('NKC')) return 'TKC_KRAFT';
-  if(up.startsWith('NDT')) return 'DONG_TIEN';
-  if(up.startsWith('NNE')) return 'NEW_TOYO';
-  if(up.startsWith('NTQ')) return 'TAN_QUANG';
-  if(up.startsWith('NVD')) return 'VAN_DIEM';
-  if(up.startsWith('NXM')) return 'XUAN_MAI';
-  if(up.startsWith('NXS')) return 'XSD';
-  if(up.startsWith('NSK')) return 'SIAM_KRAFT';
-  return 'GENERIC'; // 未登録業者
-}
-
-function isIndonesiaDest(){
-  const dest=(S.portOfDischarge||S.selectedPod||'').toUpperCase();
-  return dest.includes('INDONESIA')||dest.includes('JAKARTA')||dest.includes('SURABAYA')||dest.includes('PRIOK');
-}
-
-/* ══════════════
-   Data Loading
-══════════════ */
-async function loadInvoice(ivOverride){
-  const ivRaw = ivOverride || (document.getElementById('ivInput')?.value||'');
-  const iv=ivRaw.trim().toUpperCase();
-  if(!iv){showStatus('loadStatus','warn','Invoice No. を入力してください。');return;}
-  if(!S.token){showStatus('loadStatus','err','先にログインしてください。');return;}
-
-  S.invoiceNo=iv;
-  showStatus('loadStatus','info','<span class="spin">⟳</span> COMPASS から取得中...');
-  hideDataCards();
-
-  try{
-    /* Step 1: Booking */
-    const bkgRes=await dvGet(
-      `cr49f_bookings?$filter=cr49f_invoice_no eq '${encodeURIComponent(iv)}'`+
-      `&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,`+
-               `cr49f_etd,cr49f_eta,crcf9_bl_etd,crcf9_bl_eta,`+
-               `cr49f_bl_number,crcf9_bl_pol_text,`+
-               `_cr49f_sale_contract_id_value,_cr49f_carrier_id_value`+
-      `&$expand=cr49f_carrier_id($select=crcf9_carrier)&$top=1`
-    );
-    if(!bkgRes.value||bkgRes.value.length===0){
-      showStatus('loadStatus','err',`Invoice No. "${iv}" が見つかりません。`);
-      return;
-    }
-    S.booking=bkgRes.value[0];
-    S.carrierName=S.booking['cr49f_carrier_id']?.crcf9_carrier||'(不明)';
-
-    const bookingId=S.booking.cr49f_bookingid;
-    const scGuid=S.booking['_cr49f_sale_contract_id_value'];
-
-    /* Step 2: Containers */
-    showStatus('loadStatus','info','<span class="spin">⟳</span> コンテナ情報取得中...');
-    const ctRes=await dvGet(
-      `crcf9_container_informations?$filter=_crcf9_booking_id_value eq ${bookingId}`+
-      `&$select=crcf9_container_informationid,crcf9_n_w,crcf9_quantity,`+
-               `crcf9_container_no,crcf9_seal_no,crcf9_type,_crcf9_sale_detail_id_value&$top=50`
-    );
-    S.containers=ctRes.value||[];
-    S.totalNwMt=S.containers.reduce((a,c)=>a+(c.crcf9_n_w||0),0)/1000;
-    S.totalBales=S.containers.reduce((a,c)=>a+(c.crcf9_quantity||0),0);
-    S.containerCount=S.containers.length;
-
-    if(!scGuid){
-      showStatus('loadStatus','warn','⚠ 販売契約リンクが見つかりません。ESL・書類生成は可能です（一部項目は空欄）。');
-      renderDataCard();
-      renderContainerTable();
-      renderPodSelector();
-      document.getElementById('lcCard').style.display='';
-      document.getElementById('goPanel').style.display='';
-      autoLoadLcJson();
-      return;
-    }
-
-    /* Step 3: Sale Contract */
-    showStatus('loadStatus','info','<span class="spin">⟳</span> 販売契約取得中...');
-    S.saleContract=await dvGet(
-      `cr49f_sale_contracts(${scGuid})`+
-      `?$select=cr49f_sale_contract_no,cr49f_terms_conditions,cr49f_pay_cls,cr49f_pay_days`
-    );
-
-    /* Step 4: Sale Detail */
-    const sdRes=await dvGet(
-      `cr49f_sale_details?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
-      `&$select=cr49f_price,cr49f_quantity&$top=1`
-    );
-    S.saleDetail=sdRes.value&&sdRes.value.length>0?sdRes.value[0]:null;
-    const priceUsd=S.saleDetail?.cr49f_price||0;
-    S.amountUsd=Math.round(S.totalNwMt*priceUsd*100)/100;
-    S.contractQuantityMt=S.saleDetail?.cr49f_quantity||0;
-
-    /* Step 5: S/I 全件照会 */
-    showStatus('loadStatus','info','<span class="spin">⟳</span> S/I・LC番号取得中...');
-    const allSiRes=await dvGet(
-      `cr49f_s_is?$filter=_cr49f_sale_contract_id_value eq ${scGuid}`+
-      `&$select=cr49f_s_iid,cr49f_lc_no,crcf9_payment_classification,`+
-               `crcf9_sino,crcf9_all,crcf9_po_vo,crcf9_vo_no,`+
-               `crcf9_place_of_delivery_1,crcf9_place_of_delivery_2,crcf9_place_of_delivery_3,`+
-               `crcf9_notify_party,crcf9_address,crcf9_tel,crcf9_fax,`+
-               `crcf9_port_of_discharge,crcf9_invoice_text1,crcf9_bencert_text,crcf9_fd_mail`+
-      `&$orderby=crcf9_sino asc&$top=4`
-    );
-    const allSiList=allSiRes.value||[];
-    S.allSiList=allSiList;
-    S.siHeader=allSiList.find(s=>s.crcf9_sino===1)
-             ||allSiList.find(s=>s.cr49f_lc_no)
-             ||(allSiList.length>0?allSiList[0]:null);
-    S.allText=allSiList.find(s=>s.crcf9_all)?.crcf9_all||'';
-    S.poVo=S.siHeader?.crcf9_po_vo
-          ||allSiList.find(s=>s.crcf9_po_vo)?.crcf9_po_vo||'';
-    S.voNo=S.siHeader?.crcf9_vo_no
-          ||allSiList.find(s=>s.crcf9_vo_no)?.crcf9_vo_no||'';
-    const podArr=[
-      S.siHeader?.crcf9_place_of_delivery_1,
-      S.siHeader?.crcf9_place_of_delivery_2,
-      S.siHeader?.crcf9_place_of_delivery_3,
-    ].filter(Boolean);
-    S.podList=podArr;
-    S.selectedPod=podArr.length>0?podArr[0]:'';
-    // v1.22: MEGA_SURYA 用 importer 情報
-    S.importerName=parseNotifyParty(S.siHeader?.crcf9_notify_party||'');
-    S.importerAddr=parseAddress(S.siHeader?.crcf9_address||'');
-    S.importerTel=S.siHeader?.crcf9_tel||'';
-    S.importerFax=S.siHeader?.crcf9_fax||'';
-    S.portOfDischarge=S.siHeader?.crcf9_port_of_discharge||'';
-    S.invoiceText1=S.siHeader?.crcf9_invoice_text1||'';
-    S.beneCertText=S.siHeader?.crcf9_bencert_text||'';
-    S.importerEmail=S.siHeader?.crcf9_fd_mail||'';
-
-    /* Step 6: S/I Detail (v1.22: allSiList 全件・hs_code 取得、中複排除) */
-    {
-      const seenIds=new Set();
-      const allDetails=[];
-      for(const si of allSiList){
-        try{
-          const detRes=await dvGet(
-            `crcf9_s_i_details?$filter=_crcf9_s_i_id_value eq ${si.cr49f_s_iid}`+
-            `&$select=crcf9_productname,_crcf9_sale_detail_id_value,crcf9_hs_code&$top=10`
-          );
-          for(const d of detRes.value||[]){
-            const sid=d['_crcf9_sale_detail_id_value'];
-            d._si_po_vo=si.crcf9_po_vo||'';
-            if(!seenIds.has(sid)){
-              seenIds.add(sid);
-              allDetails.push(d);
-            } else if(d.crcf9_productname){
-              // 同じsale_detail_idで後のS/Iにproductnameがあれば上書き（sino順）
-              const idx=allDetails.findIndex(x=>x['_crcf9_sale_detail_id_value']===sid);
-              if(idx>=0 && !allDetails[idx].crcf9_productname) allDetails[idx]=d;
-            }
-          }
-        }catch(e){ /* 該当 S/I の detail 取得失敗は無視 */ }
-      }
-      S.siDetailList=allDetails;
-      S.siDetail=S.siDetailList.length>0?S.siDetailList[0]:null;
-    }
-
-    showStatus('loadStatus','ok',`✅ "${iv}" のデータを取得しました。`);
-    renderDataCard();
-    renderContainerTable();
-    renderPodSelector();
-    document.getElementById('lcCard').style.display='';
-    document.getElementById('goPanel').style.display='';
-    autoLoadLcJson();
-
-  }catch(e){
-    showStatus('loadStatus','err','エラー: '+e.message);
-  }
-}
-
-function hideDataCards(){
-  ['dataCard','podCard','ctCard','lcCard','goPanel'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display='none';
-  });
-}
-
-function renderDataCard(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const si=S.siHeader;
-  const sd=S.siDetail;
-
-  const lcNo=si?.cr49f_lc_no||'';
-  let bank='',bankTag='';
-  if(lcNo.startsWith('3640ILU')){bank='MUFG';bankTag='<span class="tag tag-mufg">MUFG</span>';}
-  else if(lcNo.startsWith('ILC')){bank='Vietcombank';bankTag='<span class="tag tag-vcb">Vietcombank</span>';}
-  // v1.07: ASPEX tag (WOORI bank prefix)
-  else if(lcNo.startsWith('ILC916')){bank='WOORI';bankTag='<span class="tag tag-aspex">WOORI</span>';}
-  document.getElementById('bankTag').innerHTML=bankTag;
-  S.bankType=bank;
-
-  const items=[
-    ['Invoice No.',bk.cr49f_invoice_no,''],
-    ['Vessel',bk.cr49f_main_ship_name||'—',''],
-    ['B/L ETD',fmtDate(getEtd(bk))+(bk.crcf9_bl_etd?'':' (予定)'),''],
-    ['B/L ETA',fmtDate(getEta(bk))+(bk.crcf9_bl_eta?'':' (予定)'),''],
-    ['B/L No.',bk.cr49f_bl_number||'—','mono'],
-    ['POL',bk.crcf9_bl_pol_text||'—',''],
-    ['Carrier',S.carrierName,''],
-    ['Contract No.',S.poVo||sc?.cr49f_sale_contract_no||'—',''],
-    ['LC No.',lcNo||'—','lc'],
-    ['Product',sd?.crcf9_productname||'—',''],
-    ['Price (USD/MT)',(S.saleDetail?.cr49f_price||0).toFixed(2),''],
-    ['Total N/W',S.totalNwMt.toFixed(2)+' MT',''],
-    ['Total Bales',S.totalBales+' BALES',''],
-    ['Containers',S.containerCount+' × 40\'',''],
-    ['Amount USD','USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2}),''],
-  ];
-
-  document.getElementById('dataGrid').innerHTML=items.map(([l,v,cls])=>`
-    <div class="data-item">
-      <label>${l}</label>
-      <span class="${cls}">${v}</span>
-    </div>`).join('');
-  document.getElementById('dataCard').style.display='';
-}
-
-function renderContainerTable(){
-  const body=document.getElementById('ctBody');
-  const foot=document.getElementById('ctFoot');
-  body.innerHTML=S.containers.map((c,i)=>`
-    <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:4px 8px;color:var(--muted);">${i+1}</td>
-      <td style="padding:4px 8px;font-family:monospace;font-size:11px;">${c.crcf9_container_no||'—'}</td>
-      <td style="padding:4px 8px;font-family:monospace;font-size:11px;">${c.crcf9_seal_no||'—'}</td>
-      <td style="padding:4px 8px;text-align:right;">${c.crcf9_quantity||0}</td>
-      <td style="padding:4px 8px;text-align:right;">${((c.crcf9_n_w||0)/1000).toFixed(2)}</td>
-      <td style="padding:4px 8px;color:var(--muted);">${c.crcf9_type||'—'}</td>
-    </tr>`).join('');
-  foot.innerHTML=`
-    <tr style="border-top:2px solid var(--border);font-weight:700;color:var(--accent);">
-      <td colspan="3" style="padding:5px 8px;">TOTAL</td>
-      <td style="padding:5px 8px;text-align:right;">${S.totalBales}</td>
-      <td style="padding:5px 8px;text-align:right;">${S.totalNwMt.toFixed(2)}</td>
-      <td></td>
-    </tr>`;
-  document.getElementById('ctSummary').textContent=
-    `${S.containerCount}本 / ${S.totalBales} BALES / ${S.totalNwMt.toFixed(2)} MT`;
-  document.getElementById('ctCard').style.display='';
-}
-
-/* ══════════════════════
-   POD 選択 UI (v1.2)
-══════════════════════ */
-function renderPodSelector(){
-  const card=document.getElementById('podCard');
-  const wrap=document.getElementById('podRadioWrap');
-  if(S.podList.length===0){card.style.display='none';return;}
-  if(S.podList.length===1){S.selectedPod=S.podList[0];card.style.display='none';return;}
-  wrap.innerHTML=S.podList.map((pod,i)=>`
-    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;
-                  cursor:pointer;font-size:13px;color:var(--text);">
-      <input type="radio" name="podRadio" value="${pod}" ${i===0?'checked':''}
-        onchange="S.selectedPod=this.value"
-        style="accent-color:var(--accent);width:14px;height:14px;">
-      ${pod}
-    </label>`).join('');
-  S.selectedPod=S.podList[0];
-  card.style.display='';
-}
-
-/* ══════════════════════════════
-   LC JSON 自動取得 (v1.3)
-══════════════════════════════ */
-async function autoLoadLcJson(){
-  const lcNo=S.siHeader?.cr49f_lc_no||'';
-  const contractNo=S.saleContract?.cr49f_sale_contract_no||'';
-  if(!lcNo||!contractNo){
-    showStatus('lcAutoStatus','warn','⚠ LC番号または契約番号が未取得。手動読込を使用してください。');
-    return;
-  }
-  if(!S.graphToken||Date.now()>S.graphTokenExpiry){
-    showStatus('lcAutoStatus','warn','⚠ SharePoint未接続（Graph tokenなし）。手動読込を使用してください。');
-    return;
-  }
-  const lcNoClean=lcNo.split(/\s/)[0];
-  const fileName=`${contractNo}_${lcNoClean}.json`;
-  showStatus('lcAutoStatus','info',`<span class="spin">⟳</span> ${fileName} を取得中...`);
-  const spPaths=[
-    `古紙/-. AI 活用/D-01-LC_FD_CHECKER/${fileName}`,
-    `古紙/-. 古紙書類/▲ LC_LEENAI_JSON/${fileName}`
-  ];
-  let jsonData=null;
-  for(const sp of spPaths){
-    try{
-      const encoded=sp.split('/').map(encodeURIComponent).join('/');
-      jsonData=await graphGet(`drives/${SP_DRIVE_ID}/root:/${encoded}:/content`);
-      break;
-    }catch(e){ /* 次のパスを試す */ }
-  }
-  if(!jsonData){
-    showStatus('lcAutoStatus','warn',`⚠ ${fileName} が見つかりません。手動読込を使用してください。`);
-    return;
-  }
-  try{
-    const lc=Array.isArray(jsonData)?jsonData[0]:jsonData;
-    S.lcJson=lc;
-    S.lcDateEn=parseLcDate(lc.lcDate||'');
-    const po=parsePO(lc.commodity45A||'');
-    S.poNo=po.no;
-    S.poDate=po.date;
-    S.goodsType=detectGoodsType(lc.commodity45A||'',S.siDetail?.crcf9_productname||'');
-    S.docs46A=lc.docs46A||[];
-    S.addCond47A=lc.addCond47A||'';
-    showLcJsonInfo(lc);
-    showStatus('lcAutoStatus','ok',`✅ LC JSON 自動取得完了: ${fileName}`);
-    document.getElementById('lcJsonStatus').style.display='none';
-    updateBadge('b-verify','⚠');
-  }catch(e){
-    showStatus('lcAutoStatus','err','LC JSON 解析エラー: '+e.message);
-  }
-}
-
-/* ══════════════
-   LC JSON Load
-══════════════ */
-async function openLcJson(){
-  if(!window.showOpenFilePicker){
-    showStatus('lcLoadStatus','warn','このブラウザは File System Access API 非対応です。');
-    return;
-  }
-  try{
-    const [fh]=await window.showOpenFilePicker({
-      types:[{description:'JSON Files',accept:{'application/json':['.json']}}],
-      multiple:false
-    });
-    const file=await fh.getFile();
-    const text=await file.text();
-    const data=JSON.parse(text);
-    const lc=Array.isArray(data)?data[0]:data;
-    S.lcJson=lc;
-    S.lcDateEn=parseLcDate(lc.lcDate||'');
-    const po=parsePO(lc.commodity45A||'');
-    S.poNo=po.no;
-    S.poDate=po.date;
-    S.goodsType=detectGoodsType(lc.commodity45A||'',S.siDetail?.crcf9_productname||'');
-    S.docs46A=lc.docs46A||[];
-    S.addCond47A=lc.addCond47A||'';
-    showLcJsonInfo(lc);
-    showStatus('lcLoadStatus','ok',`✅ LC JSON 読込完了: ${fh.name}`);
-    document.getElementById('lcJsonStatus').style.display='none';
-    updateBadge('b-verify','⚠');
-  }catch(e){
-    if(e.name!=='AbortError')
-      showStatus('lcLoadStatus','err','読込エラー: '+e.message);
-  }
-}
-
-function showLcJsonInfo(lc){
-  const el=document.getElementById('lcJsonInfo');
-  el.innerHTML=`
-    <div class="lc-json-row">
-      <span class="lc-label">LC No.</span>
-      <span class="lc-val">${lc.lcNo||'—'}</span>
-      <span class="lc-label">DATED ON</span>
-      <span class="lc-val">${S.lcDateEn||lc.lcDate||'—'}</span>
-      <span class="lc-bank">${lc.issuingBank||'—'}</span>
-    </div>
-    <div class="lc-json-row">
-      <span class="lc-label">PO No.</span>
-      <span class="lc-val">${S.poNo||'—'}</span>
-      <span class="lc-label">PO Date</span>
-      <span class="lc-val">${S.poDate||'—'}</span>
-      <span class="lc-label">Docs 46A</span>
-      <span class="lc-val">${(lc.docs46A||[]).length} 件</span>
-    </div>
-    ${renderDocs46ATable(lc)}
-    ${lc.addCond47A?renderAddCond47A(lc.addCond47A):''}`;
-  el.style.display='';
-}
-
-/* ══════════════════════════════════════
-   v1.30: 46A 必要書類 テーブル
-══════════════════════════════════════ */
-function parseDocEntry(doc){
-  // ── 장수 파싱 ──
-  let qty='—';
-  const fracM=doc.match(/(\d+)\/(\d+)\s*(?:ORIGINALS?\s*)?(?:SET|B\/L)/i);
-  if(fracM){
-    qty=`${fracM[1]}/${fracM[2]} SET`;
-  } else if(/FULL\s+SET/i.test(doc)){
-    qty='FULL SET';
-  } else if(/IN\s+DUPLICATE/i.test(doc)){
-    qty='2 ORIG';
-  } else if(/IN\s+TRIPLICATE/i.test(doc)){
-    qty='3 ORIG';
-  } else {
-    const origM=doc.match(/(\d+)\s*ORIGINALS?/i);
-    const copyM=doc.match(/(\d+)\s*(?:COPIES|COPY)/i);
-    const parts=[];
-    if(origM) parts.push(`${origM[1]} ORIG`);
-    if(copyM) parts.push(`${copyM[1]} COPY`);
-    if(parts.length) qty=parts.join(' + ');
-  }
-
-  // ── 書類名パターンマッチ ──
-  const patterns=[
-    [/BILL\s+OF\s+LADING/i,                              'BILL OF LADING'],
-    [/COMMERCIAL\s+INVOICE/i,                             'COMMERCIAL INVOICE'],
-    [/PACKING\s+LIST/i,                                   'PACKING LIST'],
-    [/CERTIFICATE\s+OF\s+ORIGIN/i,                        'CERTIFICATE OF ORIGIN'],
-    [/CERTIFICATE\s+OF\s+QUALITY\s+AND\s+QUANTITY/i,      'CERT. OF QUALITY & QUANTITY'],
-    [/CERTIFICATE\s+OF\s+QUALITY/i,                       'CERT. OF QUALITY'],
-    [/BENEFICIARY.?S\s+CERTIFICATE.*?FREE\s+TIME/i,       "BENEFICIARY'S CERT. (FREE TIME)"],
-    [/BENEFICIARY.?S\s+CERTIFICATE/i,                     "BENEFICIARY'S CERTIFICATE"],
-    [/EXPORTER.?S\s+STATEMENT/i,                          "EXPORTER'S STATEMENT"],
-    [/INSURANCE\s+POLICY|INSURANCE\s+CERTIFICATE/i,       'INSURANCE'],
-    [/WEIGHT\s+CERTIFICATE/i,                             'WEIGHT CERTIFICATE'],
-    [/PACKING\s+DECLARATION/i,                            'PACKING DECLARATION'],
-    [/CERTIFICATE/i,                                      'CERTIFICATE'],
-  ];
-  let name=doc.slice(0,40).trim();
-  for(const [pat,label] of patterns){
-    if(pat.test(doc)){name=label;break;}
-  }
-
-  return {name,qty};
-}
-
-function renderDocs46ATable(lc){
-  const docs=lc.docs46A||[];
-  if(!docs.length) return '';
-  const rows=docs.map((doc,i)=>{
-    const {name,qty}=parseDocEntry(doc);
-    const qtyColor=qty==='—'?'var(--muted)':'var(--accent)';
-    // 全文を折り畳み表示
-    const shortDoc=doc.length>120?doc.slice(0,120)+'…':doc;
-    return `
-      <tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:5px 6px;color:var(--muted);text-align:center;font-size:11px;">${i+1}</td>
-        <td style="padding:5px 6px;font-weight:700;font-size:11.5px;color:var(--text);white-space:nowrap;">${name}</td>
-        <td style="padding:5px 8px;text-align:center;white-space:nowrap;font-size:12px;font-weight:700;color:${qtyColor};">${qty}</td>
-        <td style="padding:5px 6px;font-size:10.5px;color:var(--text2);line-height:1.5;">${shortDoc}</td>
-      </tr>`;
-  }).join('');
-
-  return `
-    <div style="margin-top:14px;">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
-                  letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-        46A — 必要書類
-        <span style="font-weight:600;color:var(--accent);font-size:12px;">${docs.length} 件</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;">
-          <thead>
-            <tr style="background:var(--surface2);border-bottom:2px solid var(--border);">
-              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:center;width:28px;">#</th>
-              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:left;">書類名</th>
-              <th style="padding:5px 8px;color:var(--muted);font-weight:600;text-align:center;white-space:nowrap;">枚数</th>
-              <th style="padding:5px 6px;color:var(--muted);font-weight:600;text-align:left;">要件内容</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-function renderAddCond47A(text){
-  if(!text) return '';
-  const lines=text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
-  const html=lines.map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
-  return `
-    <div style="margin-top:10px;padding:10px 12px;background:var(--surface2);
-                border:1px solid var(--border);border-radius:6px;">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
-                  letter-spacing:.6px;margin-bottom:6px;">
-        47A — 追加条件
-      </div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.65;">${html}</div>
-    </div>`;
-}
-
-/* ══════════════
-   Build All Docs (v1.07: multi-importer)
-══════════════ */
-function buildAll(){
-  if(!S.booking){showStatus('loadStatus','warn','先に Invoice を Load してください。');return;}
-
-  // v1.07: Detect importer from Invoice No.
-  S.importer = detectImporter(S.invoiceNo);
-  updateTabHighlights();
-
-  // Update header badge
-  const badge = document.getElementById('importerBadge');
-  if(S.importer === 'ASPEX'){
-    badge.textContent = '[ASPEX]';
-    badge.style.color = 'var(--purple)';
-  } else if(S.importer === 'MEGA_SURYA'){
-    badge.textContent = '[MEGA SURYA]';
-    badge.style.color = 'var(--ok)';
-  } else {
-    badge.textContent = '[SAIGON]';
-    badge.style.color = 'var(--warn)';
-  }
-
-  if(S.importer === 'ASPEX'){
-    // ASPEX: Bene Cert + ESL 生成、Q&Q/CO/FT は N/A
-    renderBeneCertAspex();
-    renderESL();
-    showTab('esl');
-    renderNAForPanel('qq-content',
-      'ASPEX は Q&amp;Q Certificate 不要');
-    renderNAForPanel('co-content',
-      'ASPEX は Certificate of Origin 不要');
-    renderNAForPanel('ft-content',
-      'ASPEX は Free Time Certificate 不要 — Free Time は "FOR BENEFICIARY\'S INFORMATION ONLY"');
-    updateBadge('b-qq','N/A');
-    updateBadge('b-co','N/A');
-    updateBadge('b-bene','✓');
-    updateBadge('b-ft','N/A');
-    updateBadge('b-esl','✓');
-  } else if(S.importer === 'MEGA_SURYA'){
-    // MEGA_SURYA: Bene Cert + COO + ESL 生成、Q&Q/FT は N/A
-    renderBeneCertMegaSurya();
-    renderCOOMegaSurya();
-    renderESLMegaSurya();
-    showTab('esl');
-    renderNAForPanel('qq-content','MEGA SURYA は Q&amp;Q Certificate 不要');
-    renderNAForPanel('ft-content','MEGA SURYA は Free Time Certificate 不要');
-    updateBadge('b-qq','N/A');
-    updateBadge('b-co','✓');
-    updateBadge('b-bene','✓');
-    updateBadge('b-ft','N/A');
-    updateBadge('b-esl','✓');
-    hideTab('mail');
-    updateBadge('b-mail','—');
-  } else if(['TKC_KRAFT','DONG_TIEN','NEW_TOYO','TAN_QUANG','VAN_DIEM','XUAN_MAI'].includes(S.importer)){
-    // ベトナム業者グループ
-    const badge=document.getElementById('importerBadge');
-    const badgeLabels={
-      TKC_KRAFT:'[TKC KRAFT]', DONG_TIEN:'[DONG TIEN]', NEW_TOYO:'[NEW TOYO]',
-      TAN_QUANG:'[TAN QUANG]', VAN_DIEM:'[VAN DIEM]', XUAN_MAI:'[XUAN MAI]'
-    };
-    badge.textContent=badgeLabels[S.importer]||`[${S.importer}]`;
-    badge.style.color='var(--info)';
-
-    // COO (全業者)
-    renderCOOMegaSurya();
-    updateBadge('b-co','✓');
-
-    // Q&Q (TKC_KRAFT 除く)
-    if(S.importer !== 'TKC_KRAFT'){
-      renderQQGeneric();
-      updateBadge('b-qq','✓');
-    } else {
-      renderNAForPanel('qq-content','TKC KRAFT は Q&amp;Q 不要');
-      updateBadge('b-qq','N/A');
-    }
-
-    // Bene Cert
-    if(S.importer === 'DONG_TIEN'){
-      renderBeneCertDT();
-      updateBadge('b-bene','✓');
-    } else if(['VAN_DIEM','XUAN_MAI'].includes(S.importer)){
-      renderBeneCertSimple();
-      updateBadge('b-bene','✓');
-    } else {
-      renderNAForPanel('bene-na-placeholder','この業者は Beneficiary Certificate 不要');
-      document.getElementById('doc-bene').innerHTML='<div class="na-panel">N/A — この業者は Beneficiary Certificate 不要</div>';
-      updateBadge('b-bene','N/A');
-    }
-
-    // COPY OF MAIL (TAN_QUANG のみ)
-    if(S.importer === 'TAN_QUANG'){
-      renderCopyOfMail();
-      showTab('mail');
-      updateBadge('b-mail','✓');
-    } else {
-      hideTab('mail');
-      updateBadge('b-mail','—');
-    }
-
-    // FT/ESL: N/A
-    renderNAForPanel('ft-content','この業者は Free Time Certificate 不要');
-    updateBadge('b-ft','N/A');
-    hideTab('esl');
-    updateBadge('b-esl','—');
-  } else if(S.importer==='XSD'){
-    // XSD: Q&Q + COO + Bene Cert 生成
-    const badge=document.getElementById('importerBadge');
-    badge.textContent='[XSD]';
-    badge.style.color='var(--info)';
-    renderQQGeneric();
-    renderCOOMegaSurya();
-    renderBeneCertXSD();
-    renderNAForPanel('ft-content','XSD は Free Time Certificate 不要');
-    hideTab('esl');
-    hideTab('mail');
-    updateBadge('b-qq','✓');
-    updateBadge('b-co','✓');
-    updateBadge('b-bene','✓');
-    updateBadge('b-ft','N/A');
-    updateBadge('b-esl','—');
-    updateBadge('b-mail','—');
-  } else if(S.importer==='SIAM_KRAFT'){
-    // SIAM KRAFT: Q&Q + COO + Bene Cert 生成
-    const badge=document.getElementById('importerBadge');
-    badge.textContent='[SIAM KRAFT]';
-    badge.style.color='var(--purple)';
-    renderQQGeneric();
-    renderCOOMegaSurya();
-    renderBeneCertSK();
-    renderNAForPanel('ft-content','SIAM KRAFT は Free Time Certificate 不要');
-    hideTab('esl');
-    hideTab('mail');
-    updateBadge('b-qq','✓');
-    updateBadge('b-co','✓');
-    updateBadge('b-bene','✓');
-    updateBadge('b-ft','N/A');
-    updateBadge('b-esl','—');
-    updateBadge('b-mail','—');
-  } else if(S.importer==='GENERIC'){
-    // 未登録業者: COO + Q&Q (+ インドネシア向けはESL)
-    const badge=document.getElementById('importerBadge');
-    badge.textContent='[---]';
-    badge.style.color='var(--muted)';
-    renderCOOMegaSurya();
-    renderQQGeneric();
-    updateBadge('b-co','✓');
-    updateBadge('b-qq','✓');
-    if(isIndonesiaDest()){
-      renderESLMegaSurya();
-      showTab('esl');
-      updateBadge('b-esl','✓');
-    } else {
-      hideTab('esl');
-      updateBadge('b-esl','—');
-    }
-    renderNAForPanel('bene-content','未登録業者 — Beneficiary Certificate 不要');
-    renderNAForPanel('ft-content','未登録業者 — Free Time Certificate 不要');
-    updateBadge('b-bene','N/A');
-    updateBadge('b-ft','N/A');
-    hideTab('mail');
-    updateBadge('b-mail','—');
-  } else {
-    // SAIGON: 既存4種生成
-    renderQQ();
-    renderCO();
-    renderBeneCert();
-    renderFreeTime();
-    restoreSaigonPanels();
-    updateBadge('b-qq','✓');
-    updateBadge('b-co','✓');
-    updateBadge('b-bene','✓');
-    updateBadge('b-ft','✓');
-  }
-
-  if(S.lcJson) runLcVerify();
-  alert('全書類を生成しました！各タブで確認・印刷できます。');
-}
-
-/* N/A パネル表示ヘルパー */
-function renderNAForPanel(containerId, reason){
-  const el = document.getElementById(containerId);
-  if(!el) return;
-  el.innerHTML = `<div class="na-panel">N/A — ${reason}</div>`;
-}
-
-/* SAIGON用パネル構造を復元 */
-function restoreSaigonPanels(){
-  hideTab('esl');
-  hideTab('mail');
-  const qqEl=document.getElementById('qq-content');
-  if(qqEl && !qqEl.querySelector('#doc-qq')){
-    qqEl.innerHTML=`
-      <div class="doc-section-title">Certificate of Quality and Quantity</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-qq"></div></div>`;
-  }
-  const coEl=document.getElementById('co-content');
-  if(coEl && !coEl.querySelector('#doc-co')){
-    coEl.innerHTML=`
-      <div class="doc-section-title">Certificate of Origin</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-co"></div></div>`;
-  }
-  const ftc=document.getElementById('ft-content');
-  if(ftc && !ftc.querySelector('#doc-ft')){
-    ftc.innerHTML=`
-      <div class="doc-section-title">Free Time Certificate (Beneficiary's Certificate)</div>
-      <div class="cert-wrap"><div class="cert-doc" id="doc-ft"></div></div>`;
-  }
-}
-
-/* ══════════════════════════════
-   Certificate Rendering Helpers
-══════════════════════════════ */
-function certHeader(){
-  return `
-    <div class="cert-hdr-bar">
-      <div class="cert-hdr-company">LEENEAR CORPORATION</div>
-      <div class="cert-hdr-addr">VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064</div>
-      <div class="cert-hdr-contact">PHONE: 81335289850&nbsp;&nbsp;&nbsp;FAX: 81335289851</div>
-    </div>`;
-}
-
-/* v1.07: 業者別 EXPORTER / IMPORTER ブロック */
-function certExporterImporter(){
-  const exporterBlock = `
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
-      TEL: +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX: +81-3-3528-9851
-    </div>`;
-
-  if(S.importer === 'ASPEX'){
-    return exporterBlock + `
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      PT ASPEX KUMBONG<br>
-      WISMA KORINDO 11TH FLOOR, JL. M.T HARYONO KAV. 62, JAKARTA SELATAN, INDONESIA 12780<br>
-      TEL: 62-21-797-5959 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX: 62-21-797-6407
-    </div>`;
-  }
-
-  if(S.importer === 'MEGA_SURYA'){
-    return exporterBlock + `
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${S.importerName||'—'}<br>
-      ${S.importerAddr||''}
-    </div>`;
-  }
-
-  // SAIGON (default)
-  return exporterBlock + `
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      SAIGON PAPER CORPORATION<br>
-      MY XUAN A INDUSTRIAL PARK, PHU MY WARD, HO CHI MINH CITY, VIET NAM<br>
-      TEL +84 254 3899338 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX +84 254 3899337
-    </div>`;
-}
-
-function certMeta(invoiceNo,etd,eta){
-  return `
-    <div class="cert-meta">
-      <div>Invoice No. &nbsp;${invoiceNo}</div>
-      <div>Date of Issuance : &nbsp;${etd}</div>
-      <div>ETD : &nbsp;${etd}</div>
-      <div>ETA : &nbsp;${eta}</div>
-    </div>`;
-}
-
-function certToBlock(){
-  const name = S.importer === 'MEGA_SURYA'
-    ? (S.importerName||'—')
-    : 'SAIGON PAPER CORPORATION';
-  return `
-    <div class="cert-to-block">
-      <div><strong>TO.&nbsp;&nbsp;&nbsp;${name}</strong></div>
-    </div>`;
-}
-
-function certDataItems(items){
-  return items.map(([label,val])=>`
-    <div class="cert-item">
-      <span class="cert-bullet">●</span>
-      <span class="cert-item-label">${label}</span>
-      <span class="cert-item-val">${val}</span>
-    </div>`).join('');
-}
-
-function certSig(){
-  return `
-    <div class="cert-sig-block">
-      <div class="cert-sig-company">LEENEAR CORPORATION</div>
-      <div class="cert-sig-line"></div>
-      <div class="cert-sig-name">${S.signerName}</div>
-    </div>`;
-}
-
-function getCommonItems(){
-  const bk=S.booking;
-  const lc=getLcNo();
-  const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const pod=getPod();
-  return [
-    ['Contry of Origin','JAPAN'],
-    ['B/L No.',bk.cr49f_bl_number||'—'],
-    ['Description of Goods',product],
-    ['Quantity',S.totalBales+' BALES'],
-    ['Weight',S.totalNwMt.toFixed(2)+' MT'],
-    ['Number of Container',S.containerCount+' Containers (40\')'],
-    ['Vessel\'s Name',bk.cr49f_main_ship_name||'—'],
-    ['Port of Loading',pol],
-    ['Port of Destination',pod],
-    ['L/C No.',lc],
-  ];
-}
-
-/* ══════════
-   Q&Q (SAIGON)
-══════════ */
-function renderQQ(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etdStr=fmtDateEn(getEtd(bk));
-  const etaStr=fmtDateEn(getEta(bk));
-  const poLine=getPoLine();
-  const items=getCommonItems();
-
-  document.getElementById('doc-qq').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Certificate of Quality and Quantity</div>
-    ${certMeta(invoiceNo,etdStr,etaStr)}
-    ${certToBlock()}
-    ${certExporterImporter()}
-    <div class="cert-confirm-bold">
-      WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED AND THE QUALITY
-      &amp; QUANTITY OF THE GOODS CORRESPOND TO THE CONTRACT NO. ${contractNo}
-    </div>
-    <div class="cert-items">${certDataItems(items)}</div>
-    <br>
-    <div style="font-weight:700;font-size:12px;">WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED</div>
-    <div class="cert-bottom">${poLine}</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════
-   CO (SAIGON)
-══════════ */
-function renderCO(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etdStr=fmtDateEn(getEtd(bk));
-  const etaStr=fmtDateEn(getEta(bk));
-  const poLine=getPoLine();
-  const items=getCommonItems();
-
-  document.getElementById('doc-co').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Certificate of Origin</div>
-    ${certMeta(invoiceNo,etdStr,etaStr)}
-    ${certToBlock()}
-    ${certExporterImporter()}
-    <div class="cert-items" style="margin-top:8px;">${certDataItems(items)}</div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    <div class="cert-bottom">${poLine}</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════
-   Bene Cert (SAIGON)
-══════════ */
-function renderBeneCert(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const etdStr=fmtDateEn(getEtd(bk));
-  const etaStr=fmtDateEn(getEta(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const blDate=fmtDateEn(getEtd(bk));
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const lc=getLcNo();
-  const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const carrier=S.carrierName||'—';
-  const sc=S.saleContract;
-  const poLine=getPoLine();
-  const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
-    </div>
-    <div class="cert-to-block">
-      <div class="cert-to-name">TO: SAIGON PAPER CORPORATION</div>
-      <div class="cert-to-addr">MY XUAN A INDUSTRIAL PARK, PHU MY WARD, HO CHI MINH CITY, VIET NAM</div>
-      <div class="cert-to-addr">TEL +84 254 3899338 &nbsp; FAX +84 254 3899337</div>
-    </div>
-    <br>
-    <div class="bene-lc-stmt">
-      A SHIPMENT ADVICE SHOWING PARTICULARS OF SHIPMENT INCLUDING NAME OF VESSEL,
-      TOTAL QUANTITIES, AMOUNT, B/L NUMBER AND DATE, ETD AND ETA, COPY BILL OF LADING,
-      COPY INVOICE, COPY PACKING LIST WILL BE EMAILED TO THE APPLICANT
-      WITHIN 05 WORKING DAYS AFTER SHIPMENT DATE.
-    </div>
-    <div class="bene-email-block">
-      <div class="bene-email-line"><span class="bene-email-label">From:</span> &nbsp;rcp@leenearcorp.com</div>
-      <div class="bene-email-line"><span class="bene-email-label">To:</span> &nbsp;linhntn@saigonpaper.com</div>
-      <div class="bene-email-line"><span class="bene-email-label">Subject:</span> [Shipping documents notice]</div>
-    </div>
-    <p style="font-size:12px;margin:4px 0;">Dear ALL,</p>
-    <p style="font-size:12px;margin:4px 0;">Please kindly find 01 set of non-negotiable documents including :</p>
-    <p style="font-size:12px;margin:4px 0 10px;">COPY BILL OF LADING, COPY INVOICE, COPY PACKING LIST.</p>
-    <div class="bene-table-wrap">
-      <table class="bene-tbl">
-        <tr>
-          <th>ETD</th><th>ETA</th><th>Invoice NO</th><th>Carrier</th>
-          <th>NAME OF VESSEL</th><th>B/L NUMBER AND DATE</th><th>${S.goodsType==='OCC'?'OCC':'SOP'}MT</th>
-        </tr>
-        <tr>
-          <td>${etdStr}</td>
-          <td>${etaStr}</td>
-          <td>${invoiceNo}</td>
-          <td>${carrier}</td>
-          <td>${vessel}</td>
-          <td>${blNo} DATED ${blDate}</td>
-          <td style="text-align:right;">${S.totalNwMt.toFixed(2)}</td>
-        </tr>
-      </table>
-    </div>
-    <div style="font-size:11px;margin:4px 0 8px;text-align:right;font-weight:700;">
-      TOTAL QUANTITIES: ${S.totalNwMt.toFixed(2)}
-    </div>
-    <div class="bene-amount-block">
-      <div>AMOUNT: ${amtStr}</div>
-      <div>${poLine.replace('+ ','')}</div>
-      <div>DESCRIPTION OF GOODS: ${product}</div>
-    </div>
-    <br>
-    <div style="font-size:12px;">L/C No.: ${lc}</div>
-    <br>
-    <div style="font-size:12px;">Thanks,</div>
-    <div style="font-size:12px;">Best Regards,</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════
-   Bene Cert ASPEX (v1.08 — sample format)
-══════════ */
-function renderBeneCertAspex(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateSlash(getEtd(bk));
-  const lcNo=S.siHeader?.cr49f_lc_no||'';
-  const lcDate=S.lcDateEn||'';
-  const lcLine=lcNo?(lcNo+(lcDate?' DATED ON '+lcDate:'')):'—';
-  const importLicNo=getAspexImportLicence();
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${aspexDocHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div style="text-align:right;font-size:12px;margin-bottom:14px;">
-      Date of Issuance : &nbsp;&nbsp;&nbsp;${issuanceDate}
-    </div>
-    <div style="font-size:12px;margin-bottom:14px;">
-      <div style="font-weight:700;">TO : PT. ASPEX KUMBONG</div>
-      <div>PT. ASPEX KUMBONG,</div>
-      <div>WISMA KORINDO 11TH FLOOR, JL. M.T HARYONO KAV-62, JAKARTA SELATAN, INDONESIA</div>
-      <div>ATTN: MARKETING DEPT</div>
-    </div>
-    <div style="font-size:12px;font-weight:700;margin:16px 0 10px;">
-      We sent you one set of shipping documents for Contents : ${invoiceNo}
-    </div>
-    <div style="font-size:12px;margin:0 0 14px;">
-      <table style="border-collapse:collapse;">
-        <tr>
-          <td style="vertical-align:top;padding-right:4px;white-space:nowrap;">Contents :</td>
-          <td style="line-height:1.8;">
-            Exporter Statement Letter : 1 ORIGINAL<br>
-            Commercial Invoice : 1 ORIGINAL<br>
-            Packing List : 1 ORIGINAL<br>
-            1/3 set of ORIGINAL Bill of Lading<br>
-            1 Original non negotiable B/L<br>
-            Insurance policy or certificate
-          </td>
-        </tr>
-      </table>
-    </div>
-    <div style="font-size:12px;font-weight:700;margin:14px 0;">
-      We certify that one set of shipping documents have been sent to Applicant directly
-      by express mail after shipment
-    </div>
-    <div style="font-size:12px;margin:14px 0 4px;">LC NO : ${lcLine}</div>
-    ${importLicNo!=='—'?`<div style="font-size:12px;margin:6px 0;">IMPORT LICENCE NO.${importLicNo}.</div>`:''}
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════
-   Free Time (SAIGON)
-══════════ */
-function renderFreeTime(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const lc=getLcNo();
-  const product=S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const poLine=getPoLine();
-
-  document.getElementById('doc-ft').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
-    </div>
-    ${certExporterImporter()}
-    <div class="ft-declare">
-      WE, LEENEAR CORPORATION HEREBY DECLARE THAT:<br>
-      ${getFreeTimeDeclare()}
-    </div>
-    <div class="cert-items">
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">L/C NO.</span>
-        <span class="cert-item-val">${lc}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">DESCRIPTION OF GOODS</span>
-        <span class="cert-item-val">${product}</span>
-      </div>
-    </div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    <div class="cert-bottom">${poLine}</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════
-   LC Verification (v1.07: ASPEX分岐)
-══════════════ */
-function runLcVerify(){
-  if(!S.lcJson){
-    document.getElementById('verifyStatus').className='status info show';
-    document.getElementById('verifyStatus').textContent='📋 LC JSON が未読込のため検証できません。';
-    updateBadge('b-verify','—');
-    return;
-  }
-  const results=[];
-  const lc=S.lcJson;
-  const bk=S.booking;
-
-  // 1. LC No check
-  const compassLc=S.siHeader?.cr49f_lc_no||'';
-  const jsonLc=lc.lcNo||'';
-  results.push({
-    badge:compassLc===jsonLc?'OK':'NG',
-    text:`LC No. 整合: COMPASS="${compassLc}" / LC JSON="${jsonLc}"`,
-    status:compassLc===jsonLc?'ok':'ng'
-  });
-
-  if(S.importer === 'ASPEX'){
-    /* ── ASPEX 専用チェック ── */
-
-    // 2. Bene Cert確認
-    const hasBene = lc.docs46A.some(d => d.toUpperCase().includes('BENEFICIARY'));
-    results.push({
-      badge: hasBene ? 'OK' : 'NG',
-      text: 'Beneficiary\'s Certificate: ' + (hasBene ? 'LC 46Aに記載あり' : 'LC 46Aに記載なし — 確認要'),
-      status: hasBene ? 'ok' : 'ng'
-    });
-
-    // 3. Import Licence確認
-    const importLicNo = getAspexImportLicence();
-    results.push({
-      badge: importLicNo !== '—' ? 'OK' : 'WARN',
-      text: 'Import Licence No.: ' + (importLicNo !== '—' ? importLicNo : '(未取得) — LC JSON addCond47A を確認してください'),
-      status: importLicNo !== '—' ? 'ok' : 'warn'
-    });
-
-    // 4. 45FT Container 禁止チェック
-    const has45ft = S.containers.some(c => (c.crcf9_type||'').toUpperCase().includes('45'));
-    results.push({
-      badge: has45ft ? 'NG' : 'OK',
-      text: '45FT Container: ' + (has45ft ? '⚠ 45FT コンテナ使用禁止！ASPEX は 40FT のみ可' : 'OK（40FT のみ使用）'),
-      status: has45ft ? 'ng' : 'ok'
-    });
-
-    // 5. Q&Q/CO 不要確認
-    const hasQQ = lc.docs46A.some(d => d.toLowerCase().includes('quality'));
-    const hasCO = lc.docs46A.some(d => d.toLowerCase().includes('origin'));
-    results.push({
-      badge: (!hasQQ && !hasCO) ? 'OK' : 'WARN',
-      text: 'Q&Q / CO: ' + (!hasQQ && !hasCO
-        ? 'LC 46A に記載なし（生成不要）'
-        : '⚠ LC 46A に Q&Q または CO の記載あり — 確認要'),
-      status: (!hasQQ && !hasCO) ? 'ok' : 'warn'
-    });
-
-    // 6. B/L No. check
-    const blNo = bk.cr49f_bl_number||'';
-    results.push({
-      badge: blNo ? 'OK' : 'WARN',
-      text: 'B/L No.: ' + (blNo || '(空欄) — 船積み後にCOMPASSで確認要'),
-      status: blNo ? 'ok' : 'warn'
-    });
-
-    // 7. ETD/ETA ソース確認
-    const etdSrc = bk.crcf9_bl_etd ? 'B/L確定値' : '予定値(crcf9_bl_etd未登録)';
-    const etaSrc = bk.crcf9_bl_eta ? 'B/L確定値' : '予定値(crcf9_bl_eta未登録)';
-    results.push({
-      badge: bk.crcf9_bl_etd ? 'OK' : 'WARN',
-      text: `ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
-      status: bk.crcf9_bl_etd ? 'ok' : 'warn'
-    });
-
-    // 8. Discrepancy fee info
-    results.push({
-      badge: 'INFO',
-      text: `Discrepancy Fee: ${lc.discrepancyFee||'USD 80.00'} (ASPEX固定)`,
-      status: 'info'
-    });
-
-  } else {
-    /* ── SAIGON 専用チェック ── */
-
-    // 2. Country of Origin
-    results.push({badge:'OK',text:'Country of Origin: JAPAN (固定)',status:'ok'});
-
-    // 3. Q&Q Certificate required
-    const has3=lc.docs46A.some(d=>d.toLowerCase().includes('quality'));
-    results.push({
-      badge:has3?'OK':'NG',
-      text:'Q&Q Certificate: '+(has3?'LC 46Aに記載あり（3 ORIGINALS）':'LC 46Aに記載なし — 確認要'),
-      status:has3?'ok':'ng'
-    });
-
-    // 4. CO required
-    const hasCO=lc.docs46A.some(d=>d.toLowerCase().includes('origin'));
-    results.push({
-      badge:hasCO?'OK':'NG',
-      text:'Certificate of Origin: '+(hasCO?'LC 46Aに記載あり（3 ORIGINALS）':'記載なし'),
-      status:hasCO?'ok':'ng'
-    });
-
-    // 5. Bene Cert required
-    results.push({
-      badge:lc.beneCertRequired?'OK':'WARN',
-      text:'Beneficiary\'s Certificate: '+(lc.beneCertRequired?'必要（5 working days以内）':'LC未確認'),
-      status:lc.beneCertRequired?'ok':'warn'
-    });
-
-    // 6. Free Time required
-    const hasFT=lc.docs46A.some(d=>d.toLowerCase().includes('demurrage')||d.toLowerCase().includes('free time'));
-    results.push({
-      badge:hasFT?'OK':'WARN',
-      text:'Free Time Certificate: '+(hasFT?'LC 46Aに記載あり':'LC未確認 — B/L FREE TIME条項確認要'),
-      status:hasFT?'ok':'warn'
-    });
-
-    // 7. B/L No. data check
-    const blNo=bk.cr49f_bl_number||'';
-    results.push({
-      badge:blNo&&blNo.length>0?'OK':'WARN',
-      text:'B/L No.: '+(blNo||'(空欄) — 船積み後にCOMPASSで確認要'),
-      status:blNo?'ok':'warn'
-    });
-
-    // 8. ETD/ETA ソース確認
-    const etdSrc=bk.crcf9_bl_etd?'B/L確定値':'予定値(crcf9_bl_etd未登録)';
-    const etaSrc=bk.crcf9_bl_eta?'B/L確定値':'予定値(crcf9_bl_eta未登録)';
-    results.push({
-      badge:bk.crcf9_bl_etd?'OK':'WARN',
-      text:`ETD: ${fmtDate(getEtd(bk))} (${etdSrc}) / ETA: ${fmtDate(getEta(bk))} (${etaSrc})`,
-      status:bk.crcf9_bl_etd?'ok':'warn'
-    });
-
-    // 9. Amount check
-    results.push({
-      badge:'INFO',
-      text:`Invoice Amount: USD ${S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2})} `+
-           `(${S.totalNwMt.toFixed(2)} MT × ${S.saleDetail?.cr49f_price||0} USD/MT)`,
-      status:'info'
-    });
-
-    // 10. Vietcombank extra check
-    if(S.bankType==='Vietcombank'){
-      results.push({
-        badge:'WARN',
-        text:'[Vietcombank専用] Doc.9: APPLICANT FAX/EMAIL (Security Deposit Number通知) — 別途提出要',
-        status:'warn'
-      });
-      results.push({
-        badge:'WARN',
-        text:'[Vietcombank専用] Extra Copy Set: 全書類1セットのコピーを追加提出要（未提出はUSD22控除）',
-        status:'warn'
-      });
-    }
-
-    // 11. Discrepancy fee info
-    results.push({
-      badge:'INFO',
-      text:`Discrepancy Fee: ${lc.discrepancyFee||'—'}`,
-      status:'info'
-    });
-  }
-
-  // Render
-  const ngCount=results.filter(r=>r.status==='ng').length;
-  const warnCount=results.filter(r=>r.status==='warn').length;
-  updateBadge('b-verify',ngCount>0?`NG:${ngCount}`:warnCount>0?`W:${warnCount}`:'OK');
-
-  document.getElementById('verifyStatus').className=
-    'status show '+(ngCount>0?'err':warnCount>0?'warn':'ok');
-  document.getElementById('verifyStatus').textContent=
-    `検証完了 [${S.importer}]: ${ngCount>0?`NG: ${ngCount}件`:warnCount>0?`WARN: ${warnCount}件`:'All OK'} (${results.length}項目チェック)`;
-
-  document.getElementById('checkList').innerHTML=results.map(r=>`
-    <div class="check-item ${r.status}">
-      <span class="ck-badge">${r.badge}</span>
-      <span class="ck-text">${r.text}</span>
-    </div>`).join('');
-}
-
-/* ══════════════
-   ETD / ETA ヘルパー
-══════════════ */
-function getEtd(bk){ return bk.crcf9_bl_etd || bk.cr49f_etd || null; }
-function getEta(bk){ return bk.crcf9_bl_eta || bk.cr49f_eta || null; }
-
-/* ══════════════
-   ASPEX Import Licence ヘルパー (v1.07)
-══════════════ */
-function getAspexImportLicence(){
-  // LC JSON addCond47A から "IMPORT LICEN(S|C)E NO." 以降を抽出
-  const text = (S.lcJson?.addCond47A || '') + ' ' + (S.lcJson?.docs46A?.join(' ') || '');
-  if(!text.trim()) return '—';
-  const m = text.match(/IMPORT\s+LICEN[SC]E\s+(?:NO\.?\s*)([A-Z0-9./\-]+(?:\s+DATED\s+ON\s+[A-Z]+\s+\d+,?\s+\d{4})?)/i);
-  return m ? m[1].trim().toUpperCase() : '—';
-}
-
-/* ══════════════
-   Utility Functions
-══════════════ */
-function getLcNo(){
-  const lcNo=S.siHeader?.cr49f_lc_no||'';
-  const lcDate=S.lcDateEn||S.lcJson?.lcDate||'';
-  if(!lcNo) return '—';
-  // lcNoに既に日付が含まれている場合は重複して追加しない
-  if(!lcDate||lcNo.toUpperCase().includes('DATED')) return lcNo;
-  return `${lcNo} DATED ON ${lcDate}`;
-}
-
-function getPod(){
-  if(S.selectedPod) return S.selectedPod;
-  if(S.podList.length>0) return S.podList[0];
-  if(S.lcJson?.pod) return S.lcJson.pod;
-  return '—';
-}
-
-function certBottom(){
-  if(!S.allText) return '';
-  return `<div class="cert-bottom" style="margin-top:6px;">${S.allText}</div>`;
-}
-
-function getFreeTimeDeclare(){
-  if(S.lcJson?.docs46A){
-    const ftDoc=S.lcJson.docs46A.find(d=>
-      d.toUpperCase().includes('DEMURRAGE')||d.toUpperCase().includes('FREE TIME DETENTION')
-    );
-    if(ftDoc){
-      const m=ftDoc.match(/CERTIFYING THAT\s+(.+?)(?:\.\s*THIS CERTIFICATE IS NOT REQUIRED|$)/is);
-      if(m) return m[1].trim().toUpperCase()+'.';
-    }
-  }
-  return '10 DAYS FREE TIME DEMURRAGE AND 4 DAYS FREE TIME DETENTION OR 14 DAYS FREE TIME COMBINED FOR DEMURRAGE AND DETENTION AT DESTINATION.';
-}
-
-function getContractMt(){
-  if(S.lcJson&&S.lcJson.amountNumber&&S.saleDetail?.cr49f_price){
-    return Math.round(S.lcJson.amountNumber/S.saleDetail.cr49f_price);
-  }
-  return '—';
-}
-
-function getPoLine(){
-  const poNo=S.poNo||S.lcJson?.commodity45A&&extractPO(S.lcJson.commodity45A)||'';
-  const poDate=S.poDate||'';
-  if(!poNo) return '';
-  if(S.allText && S.allText.toUpperCase().includes('OTHER TERMS')) return '';
-  const d=poDate?`DATE ${poDate}`:'';
-  return `+ OTHER TERMS ARE ACCORDING TO PURCHASE ORDER NO. ${poNo} ${d}`.trim();
-}
-
-function extractPO(text){
-  const m=text.match(/PURCHASE ORDER NO[.\s]+([A-Z0-9]+)/i);
-  return m?m[1]:'';
-}
-
-function parsePO(commodity45A){
-  const m=commodity45A.match(/PURCHASE ORDER NO[.\s]+([A-Z0-9]+)\s+DATE\s+([^./\n]+)/i);
-  if(!m) return {no:'',date:''};
-  return {no:m[1].trim(),date:m[2].trim()};
-}
-
-function parseLcDate(ddmmyyyy){
-  if(!ddmmyyyy) return '';
-  const MON=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const m=ddmmyyyy.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(!m) return ddmmyyyy;
-  const day=parseInt(m[1]);
-  const mon=parseInt(m[2]);
-  const yr=m[3];
-  if(mon<1||mon>12) return ddmmyyyy;
-  return `${MON[mon]} ${day}, ${yr}`;
-}
-
-function detectGoodsType(commodity45A,productname){
-  const combined=(commodity45A+' '+productname).toUpperCase();
-  if(combined.includes('SOP3')) return 'SOP';
-  if(combined.includes('SOP')) return 'SOP';
-  if(combined.includes('SHREDDED')) return 'SOP';
-  if(combined.includes('OCC')) return 'OCC';
-  return 'OCC';
-}
-
-function fmtDate(iso){
-  if(!iso) return '—';
-  const d=new Date(iso);
-  if(isNaN(d)) return iso;
-  return d.toISOString().split('T')[0];
-}
-
-function fmtDateEn(iso){
-  if(!iso) return '—';
-  const d=new Date(iso);
-  if(isNaN(d)) return iso;
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
-
-/* ══════════════════════════════
-   ASPEX共通ヘッダー (no phone/fax)
-══════════════════════════════ */
-function aspexDocHeader(){
-  return `
-    <div class="cert-hdr-bar">
-      <div class="cert-hdr-company">LEENEAR CORPORATION</div>
-      <div class="cert-hdr-addr">VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064</div>
-    </div>`;
-}
-
-/* ══════════════════════════════
-   ESL Rendering (v1.08)
-══════════════════════════════ */
-function renderESL(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const contractNo=sc?.cr49f_sale_contract_no||S.poVo||'—';
-  const invoiceNo=bk.cr49f_invoice_no;
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+' , JAPAN';
-  const issuanceDate=fmtDateSlash(getEtd(bk));
-
-  const rawGoods=getAspexGoodsDesc();
-  while(rawGoods.length<4) rawGoods.push('');
-
-  const goodsTrFirst=`<tr>
-    <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td>${rawGoods[0]?': '+rawGoods[0]:'&nbsp;'}</td>
-  </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:'&nbsp;'}</td></tr>`).join('');
-
-  document.getElementById('doc-esl').innerHTML=`
-    ${aspexDocHeader()}
-    <div class="esl-title">Exporter's Statement Letter</div>
-    <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
-      <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
-      <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
-    </div>
-    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:12.5px;margin-left:12px;margin-bottom:10px;">
-      1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
-      &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
-      &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
-      &nbsp;&nbsp;&nbsp;c. IS NOT CONTAMINATED OF HAZARDOUS &amp; TOXIC AND IS NOT HAZARDOUS &amp; TOXIC WASTE;<br>
-      &nbsp;&nbsp;&nbsp;d. IS HOMOGENEOUS<br>
-      2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
-      PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
-    </div>
-    <div style="font-size:13px;font-weight:700;text-decoration:underline;margin-bottom:5px;">GOODS CONDITION:</div>
-    <table class="esl-tbl">
-      <tr><td class="esl-label">IMPORTER NAME</td><td>: PT. ASPEX KUMBONG</td></tr>
-      <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
-      <tr><td class="esl-label">MODE OF TRANSPORTATION</td><td>: OCEAN SHIPPING</td></tr>
-      ${goodsTrFirst}${goodsTrRest}
-      <tr><td class="esl-label" style="font-size:10px;white-space:nowrap;">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
-      <tr><td class="esl-label">WEIGHT (TNE)</td><td>: ${S.totalNwMt.toFixed(2)}MT</td></tr>
-      <tr><td class="esl-label">NUMBER OF CONTAINER</td><td>: ${S.containerCount} Containers</td></tr>
-      <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
-      <tr><td class="esl-label">PORT OF DESTINATION</td><td>: TANJUNG PRIOK PORT, JAKARTA, INDONESIA</td></tr>
-    </table>
-    <div style="font-size:13px;font-weight:700;margin-bottom:5px;">PROVISION REFERENCE:</div>
-    <div style="font-size:12.5px;margin-bottom:8px;">
-      REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
-      IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
-      OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
-    </div>
-    <div style="font-size:13px;margin-bottom:10px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:12px;line-height:1.35;">
-      <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
-      <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
-      <div>TITLE : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAFF</div>
-    </div>
-    <div class="esl-spacer"></div>
-    ${certSig()}`;
-}
-
-function getAspexGoodsDesc(){
-  // v1.09: COMPASS siDetailList × container join → 실제 선적 품목만
-  if(S.siDetailList && S.siDetailList.length>0){
-    const shippedIds=new Set(
-      S.containers.map(c=>c['_crcf9_sale_detail_id_value']).filter(Boolean)
-    );
-    if(shippedIds.size>0){
-      const shipped=S.siDetailList.filter(d=>shippedIds.has(d['_crcf9_sale_detail_id_value']));
-      const names=shipped.map(d=>d.crcf9_productname).filter(Boolean);
-      if(names.length>0) return names;
-    }
-    // 조인 불가 시 전건 반환
-    const allNames=S.siDetailList.map(d=>d.crcf9_productname).filter(Boolean);
-    if(allNames.length>0) return allNames;
-  }
-  // LC JSON 키워드 fallback
-  const text=(S.lcJson?.commodity45A||S.siDetail?.crcf9_productname||'').toUpperCase();
-  const rows=[];
-  if(text.includes('ONP')) rows.push('WASTE PAPER FOR NEWSPRINT MANUFACTURING (ONP)');
-  if(text.includes('OMG')) rows.push('WASTE PAPER FOR NEWSPRINT MANUFACTURING (OMG)');
-  if(text.includes('SOP')||text.includes('SHREDDED')) rows.push('WASTE PAPER FOR PACKAGING MANUFACTURING (SOP)');
-  if(text.includes('BBC')) rows.push('WASTE PAPER FOR PACKAGING MANUFACTURING (BBC)');
-  if(rows.length===0) rows.push(S.siDetail?.crcf9_productname||'WASTE PAPER');
-  return rows;
-}
-
-function fmtDateSlash(iso){
-  if(!iso) return '—';
-  const d=new Date(iso);
-  if(isNaN(d)) return iso;
-  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.22: MEGA_SURYA ヘルパー関数
-══════════════════════════════════════ */
-function parseNotifyParty(val){
-  if(!val) return '';
-  // # 区切りがあれば最後の部分、なければ全体。末尾の * , を除去
-  const parts=val.split('#').map(s=>s.trim()).filter(Boolean);
-  return (parts[parts.length-1]||'').replace(/[*,]+$/,'').trim();
-}
-
-function parseAddress(val){
-  if(!val) return '';
-  let v=val.replace(/^#+/,'').trim();  // 先頭の#を除去
-  v=v.split('#')[0].trim();             // #以降(TEL/FAX等)を除去
-  v=v.replace(/[\s*]+$/,'').trim();    // 末尾の空白・*を除去
-  return v;
-}
-
-function parseHsCode(val){
-  if(!val) return '';
-  const m=val.match(/(\d[\d.]+)/);
-  if(!m) return '';
-  return m[1].replace(/\./g,'').slice(0,6);
-}
-
-function parseTaxId(text){
-  if(!text) return '';
-  const m=text.match(/TAX\s+ID[^\d]*([0-9.\-]+)/i);
-  return m?m[1].trim():'';
-}
-
-function getPortOfDestination(){
-  return S.portOfDischarge||S.selectedPod||'—';
-}
-
-/* 컨테이너의 sale_detail_id와 조인하여 실제 선적 품목만 반환 (ESL과 동일 방식) */
-function getShippedDetails(){
-  const list=S.siDetailList||[];
-  if(!list.length) return [];
-  const shippedIds=new Set(
-    S.containers.map(c=>c['_crcf9_sale_detail_id_value']).filter(Boolean)
-  );
-  if(shippedIds.size>0){
-    const filtered=list.filter(d=>shippedIds.has(d['_crcf9_sale_detail_id_value']));
-    if(filtered.length>0) return filtered;
-  }
-  return list; // fallback: 전건
-}
-
-/* ══════════════════════════════════════
-   v1.22: Beneficiary's Certificate (MEGA SURYA)
-══════════════════════════════════════ */
-function renderBeneCertMegaSurya(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etd=fmtDateEn(getEtd(bk));
-  const lc=getLcNo();
-
-  // 실제 선적 품목만 (컨테이너 sale_detail_id 조인)
-  const detailList=getShippedDetails();
-  const uniqueProducts=[...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))];
-  const uniqueHsCodes=[...new Set(detailList.map(d=>parseHsCode(d.crcf9_hs_code)).filter(Boolean))];
-  const uniquePoNos=[...new Set(detailList.map(d=>d._si_po_vo).filter(Boolean))];
-
-  const productLines=uniqueProducts.length>0
-    ? uniqueProducts.map(p=>`
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">DESCRIPTION OF GOODS</span>
-        <span class="cert-item-val">${p}</span>
-      </div>`).join('')
-    : `<div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">DESCRIPTION OF GOODS</span>
-        <span class="cert-item-val">${S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING'}</span>
-      </div>`;
-
-  const poLines=uniquePoNos.map(p=>`
-    <div class="cert-item">
-      <span class="cert-bullet">●</span>
-      <span class="cert-item-label">PO NUMBER</span>
-      <span class="cert-item-val">${p}</span>
-    </div>`).join('');
-
-  const hsLines=uniqueHsCodes.map(h=>`
-    <div class="cert-item">
-      <span class="cert-bullet">●</span>
-      <span class="cert-item-label">HS CODE</span>
-      <span class="cert-item-val">${h}</span>
-    </div>`).join('');
-
-  const beneDeclare=S.beneCertText||
-    'MINIMUM 14 DAYS FREE TIME DEMMURAGE AND DETENTION (COMBINED) AT DESTINATION PORT';
-  const allBlock=certBottom();
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date: &nbsp;&nbsp;&nbsp;${etd}</div>
-      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO<br>
-      TEL: +81-3-3528-9850 &nbsp;&nbsp; FAX: +81-3-3528-9851
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${S.importerName||'—'}<br>
-      ${S.importerAddr||''}
-    </div>
-    <div class="ft-declare">
-      WE, LEENEAR CORPORATION HEREBY DECLARE THAT:<br>
-      ${beneDeclare}
-    </div>
-    <div class="cert-items">
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">L/C NO.</span>
-        <span class="cert-item-val">${lc}</span>
-      </div>
-      ${productLines}
-      ${poLines}
-      ${hsLines}
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">VO NUMBER</span>
-        <span class="cert-item-val">${S.voNo||'—'}</span>
-      </div>
-    </div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    ${allBlock}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.22: Certificate of Origin (MEGA SURYA)
-══════════════════════════════════════ */
-function renderCOOMegaSurya(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etd=fmtDateEn(getEtd(bk));
-  const eta=fmtDateEn(getEta(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
-  const lc=getLcNo();
-  const portOfDest=getPortOfDestination();
-  const taxId=parseTaxId(S.invoiceText1);
-
-  // 실제 선적 품목만 (컨테이너 sale_detail_id 조인)
-  const detailList=getShippedDetails();
-  const uniqueProducts=[...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))];
-  const uniqueHsCodes=[...new Set(detailList.map(d=>parseHsCode(d.crcf9_hs_code)).filter(Boolean))];
-  const uniquePoNos=[...new Set(detailList.map(d=>d._si_po_vo).filter(Boolean))];
-
-  const productLines=uniqueProducts.length>0
-    ? uniqueProducts.join('<br>')
-    : (S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING');
-
-  const poLines=uniquePoNos.map(p=>`GOODS SHIPPED AS PER PURCHASE ORDER ${p}`).join('<br>');
-  const hsLines=uniqueHsCodes.map(h=>`HS CODE : ${h}`).join('<br>');
-
-  const allBlock=certBottom();
-
-  let telFaxLine='';
-  if(S.importerTel||S.importerFax){
-    telFaxLine=`<br>${S.importerTel||''}${S.importerFax?('    '+S.importerFax):''}`;
-  }
-
-  document.getElementById('doc-co').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Certificate of Origin</div>
-    <div class="cert-meta">
-      <div>Invoice No. &nbsp;${invoiceNo}</div>
-      <div>Date of Issuance : &nbsp;${etd}</div>
-      <div>ETD : &nbsp;${etd}</div>
-      <div>ETA : &nbsp;${eta}</div>
-    </div>
-    <div class="cert-to-block">
-      <div><strong>TO. &nbsp;${S.importerName||'—'}</strong></div>
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
-      TEL:(+81)-3-3528-9850 &nbsp;&nbsp; FAX:(+81)-3-3528-9851
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${S.importerName||'—'}<br>
-      ${S.importerAddr||''}${taxId?`<br>TAX ID NO. ${taxId}`:''}${telFaxLine}
-    </div>
-    <div class="cert-items" style="margin-top:8px;">
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Country of Origin</span>
-        <span class="cert-item-val">JAPAN</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">B/L No.</span>
-        <span class="cert-item-val">${blNo}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Description of Goods</span>
-        <span class="cert-item-val">${productLines}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Quantity</span>
-        <span class="cert-item-val">${S.totalBales} BALES</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Weight</span>
-        <span class="cert-item-val">${S.totalNwMt.toFixed(2)} MT</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Number of Container</span>
-        <span class="cert-item-val">${S.containerCount} Containers(40')</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Vessel's Name</span>
-        <span class="cert-item-val">${vessel}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Port of Loading</span>
-        <span class="cert-item-val">${polJapan}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">Port of Destination</span>
-        <span class="cert-item-val">${portOfDest}</span>
-      </div>
-      <div class="cert-item">
-        <span class="cert-bullet">●</span>
-        <span class="cert-item-label">L/C No.</span>
-        <span class="cert-item-val">${lc}</span>
-      </div>
-    </div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    ${S.allText ? allBlock : [
-      poLines?`<div class="cert-bottom">${poLines}</div>`:'',
-      S.voNo?`<div class="cert-bottom">VO NUMBER: ${S.voNo}</div>`:'',
-      hsLines?`<div class="cert-bottom">${hsLines}</div>`:''
-    ].join('')}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.22: ESL (MEGA SURYA) — ASPEX ESL 構造を流用
-══════════════════════════════════════ */
-function renderESLMegaSurya(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const contractNo=sc?.cr49f_sale_contract_no||S.poVo||'—';
-  const invoiceNo=bk.cr49f_invoice_no;
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+' , JAPAN';
-  const issuanceDate=fmtDateSlash(getEtd(bk));
-  const portOfDest=getPortOfDestination();
-
-  const rawGoods=getAspexGoodsDesc();
-  while(rawGoods.length<4) rawGoods.push('');
-
-  const goodsTrFirst=`<tr>
-    <td class="esl-label" rowspan="${rawGoods.length}" style="vertical-align:top;">DESCRIPTION OF GOODS</td>
-    <td>${rawGoods[0]?': '+rawGoods[0]:'&nbsp;'}</td>
-  </tr>`;
-  const goodsTrRest=rawGoods.slice(1).map(r=>`<tr><td>${r?': '+r:'&nbsp;'}</td></tr>`).join('');
-
-  document.getElementById('doc-esl').innerHTML=`
-    ${aspexDocHeader()}
-    <div class="esl-title">Exporter's Statement Letter</div>
-    <div style="font-size:13px;margin-bottom:10px;line-height:1.7;">
-      <div><strong>EXPORTER'S REF &nbsp;&nbsp;:</strong> &nbsp;${contractNo}</div>
-      <div><strong>KSO SCISI VO NO. &nbsp;:</strong> &nbsp;${S.voNo||'—'}</div>
-    </div>
-    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">WE, HEREBY DECLARE THAT:</div>
-    <div style="font-size:12.5px;margin-left:12px;margin-bottom:10px;">
-      1. THE NON HAZARDOUS AND TOXIC WASTE AS INDUSTRIAL RAW MATERIAL TO BE EXPORTED:<br>
-      &nbsp;&nbsp;&nbsp;a. DOES NOT COME FROM LANDFILL ACTIVITIES;<br>
-      &nbsp;&nbsp;&nbsp;b. IS NOT RUBBISH AND IS NOT MIXED WITH RUBBISH;<br>
-      &nbsp;&nbsp;&nbsp;c. IS NOT CONTAMINATED OF HAZARDOUS &amp; TOXIC AND IS NOT HAZARDOUS &amp; TOXIC WASTE;<br>
-      &nbsp;&nbsp;&nbsp;d. IS HOMOGENEOUS<br>
-      2. WE ARE READY TO HELD RESPONSIBLE AND RECEIVE AGAIN THE EXPORTED WASTE IF IT HAS
-      PROVEN NOT IN ACCORDANCE TO THE POINT 1 (1.A UNTIL 1.D) ABOVE.
-    </div>
-    <div style="font-size:13px;font-weight:700;text-decoration:underline;margin-bottom:5px;">GOODS CONDITION:</div>
-    <table class="esl-tbl">
-      <tr><td class="esl-label">IMPORTER NAME</td><td>: ${S.importerName||'—'}</td></tr>
-      <tr><td class="esl-label">INVOICE NO.</td><td>: ${invoiceNo}</td></tr>
-      <tr><td class="esl-label">MODE OF TRANSPORTATION</td><td>: OCEAN SHIPPING</td></tr>
-      ${goodsTrFirst}${goodsTrRest}
-      <tr><td class="esl-label" style="font-size:10px;white-space:nowrap;">QUANTITY AND TYPE OF PACKING (BALE)</td><td>: ${S.totalBales} BALES</td></tr>
-      <tr><td class="esl-label">WEIGHT (TNE)</td><td>: ${S.totalNwMt.toFixed(2)}MT</td></tr>
-      <tr><td class="esl-label">NUMBER OF CONTAINER</td><td>: ${S.containerCount} Containers</td></tr>
-      <tr><td class="esl-label">PORT OF LOADING</td><td>: ${polJapan}</td></tr>
-      <tr><td class="esl-label">PORT OF DESTINATION</td><td>: ${portOfDest}</td></tr>
-    </table>
-    <div style="font-size:13px;font-weight:700;margin-bottom:5px;">PROVISION REFERENCE:</div>
-    <div style="font-size:12.5px;margin-bottom:8px;">
-      REGULATION OF REPUBLIC OF INDONESIA'S TRADE MINISTER NUMBER 16 OF 2025, CONCERNING
-      IMPORT POLICY AND ARRANGEMENTS AND NUMBER 24 OF 2025 CONCERNING POLICY AND ARRANGEMENTS
-      OF USED CAPITAL GOODS AND NON HAZARDOUS AND TOXIC WASTE, AND ITS AMENDMENTS.
-    </div>
-    <div style="font-size:13px;margin-bottom:10px;">ISSUED BY THE EXPORTER OF ABOVE-MENTIONED GOODS.</div>
-    <div style="font-size:12px;line-height:1.35;">
-      <div>DATE OF ISSUANCE : &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>COUNTRY OF ISSUANCE : &nbsp;JAPAN</div>
-      <div>FULL NAME : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${S.signerName}</div>
-      <div>TITLE : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAFF</div>
-    </div>
-    <div class="esl-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.26: Certificate of Quality and Quantity (Vietnam 業者共用)
-══════════════════════════════════════ */
-function renderQQGeneric(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etd=fmtDateEn(getEtd(bk));
-  const eta=fmtDateEn(getEta(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
-  const lc=getLcNo();
-  const portOfDest=getPortOfDestination();
-
-  const detailList=getShippedDetails();
-  const productLines=detailList.length>0
-    ? [...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')
-    : (S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING');
-
-  const allBlock=certBottom();
-
-  let importerBlock=`${S.importerName||'—'}<br>${S.importerAddr||''}`;
-  if(S.importerTel||S.importerFax){
-    importerBlock+=`<br>${S.importerTel||''}${S.importerFax?'&nbsp;&nbsp;&nbsp;'+S.importerFax:''}`;
-  }
-
-  document.getElementById('doc-qq').innerHTML=`
-    ${aspexDocHeader()}
-    <div class="cert-title">Certificate of Quality and Quantity</div>
-    <div class="cert-meta">
-      <div>Invoice No. &nbsp;${invoiceNo}</div>
-      <div>Date of Issuance : &nbsp;${etd}</div>
-      <div>ETD : &nbsp;${etd}</div>
-      <div>ETA : &nbsp;${eta}</div>
-    </div>
-    <div class="cert-to-block"><strong>TO.&nbsp;&nbsp;&nbsp;${S.importerName||'—'}</strong></div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
-      TEL:+81-3-3528-9850 &nbsp;&nbsp;&nbsp; FAX:+81-3-3528-9851
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${importerBlock}
-    </div>
-    <div class="cert-confirm-bold">
-      WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED AND THE QUALITY
-      &amp; QUANTITY OF THE GOODS CORRESPOND TO THE CONTRACT NO. ${contractNo}
-    </div>
-    <div class="cert-items">
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Contry of Origin</span><span class="cert-item-val">JAPAN</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">B/L No.</span><span class="cert-item-val">${blNo}</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Description of Goods</span><span class="cert-item-val">${productLines}</span></div>
-      <div class="cert-item" style="margin-top:8px;"><span class="cert-bullet">●</span><span class="cert-item-label">Quantity</span><span class="cert-item-val">${S.totalBales} BALES</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Weight</span><span class="cert-item-val">${S.totalNwMt.toFixed(2)} MT</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Number of Container</span><span class="cert-item-val">${S.containerCount} Containers(40')</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Vessel's Name</span><span class="cert-item-val">${vessel}</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Port of Loading</span><span class="cert-item-val">${polJapan}</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">Port of Destination</span><span class="cert-item-val">${portOfDest}</span></div>
-      <div class="cert-item"><span class="cert-bullet">●</span><span class="cert-item-label">L/C No.</span><span class="cert-item-val">${lc}</span></div>
-    </div>
-    <br>
-    <div class="cert-confirm-bold">WE LEENEAR CORPORATION, HERE BY CONFIRM THAT THE GOODS ARE CERTIFIED</div>
-    ${allBlock}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.26: Beneficiary's Certificate (DONG TIEN)
-══════════════════════════════════════ */
-function renderBeneCertDT(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const etdStr=fmtDateEn(getEtd(bk));
-  const etaStr=fmtDateEn(getEta(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const blDate=fmtDateEn(getEtd(bk));
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const carrier=S.carrierName||'—';
-  const lc=getLcNo();
-  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join(', ')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
-  const sc=S.saleContract;
-  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
-
-  const declare=S.beneCertText||
-    '01 SET OF NON-NEGOTIABLE DOCUMENTS INCLUDING: BILL OF LADING, COMMERCIAL INVOICE, PACKING LIST, CERTIFICATE OF ORIGIN HAS BEEN SENT BY FAX OR BY E-MAIL TO APPLICANT.';
-
-  const toEmail=S.importerEmail||'';
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date &nbsp;${issuanceDate}</div>
-      <div>Invoice No. &nbsp;${invoiceNo}</div>
-    </div>
-    <div class="cert-to-block">
-      <div><strong>TO: &nbsp;${S.importerName||'—'}</strong></div>
-      <div>${S.importerAddr||''}</div>
-      ${S.importerTel?'<div>'+S.importerTel+(S.importerFax?'&nbsp;&nbsp;'+S.importerFax:'')+'</div>':''}
-    </div>
-    <br>
-    <div class="cert-confirm-bold">${declare}</div>
-    <div class="bene-email-block">
-      <div class="bene-email-line"><span class="bene-email-label">From:</span> &nbsp;rcp@leenearcorp.com</div>
-      ${toEmail?'<div class="bene-email-line"><span class="bene-email-label">To:</span> &nbsp;'+toEmail+'</div>':''}
-      <div class="bene-email-line"><span class="bene-email-label">Subject:</span> [Shipping documents for ${invoiceNo}]</div>
-    </div>
-    <p style="font-size:13px;margin:4px 0;">Dear ALL, Please kindly find 01 set of non-negotiable documents including :</p>
-    <p style="font-size:13px;margin:4px 0 10px;">COPY BILL OF LADING, COPY INVOICE, COPY PACKING LIST.</p>
-    <div class="bene-table-wrap">
-      <table class="bene-tbl">
-        <tr>
-          <th>ETD</th><th>ETA</th><th>Invoice NO</th><th>Carrier</th>
-          <th>NAME OF VESSEL</th><th>B/L NUMBER AND DATE</th><th>MT</th>
-        </tr>
-        <tr>
-          <td>${etdStr}</td>
-          <td>${etaStr}</td>
-          <td>${invoiceNo}</td>
-          <td>${carrier}</td>
-          <td>${vessel}</td>
-          <td>${blNo} DATED ${blDate}</td>
-          <td style="text-align:right;">${S.totalNwMt.toFixed(2)}</td>
-        </tr>
-      </table>
-    </div>
-    <div style="font-size:12px;margin:4px 0 8px;text-align:right;font-weight:700;">TOTAL QUANTITY: ${S.totalNwMt.toFixed(2)}</div>
-    <div class="bene-amount-block">
-      <div>AMOUNT: ${amtStr}</div>
-      <div>SHIPMENT DATE.: ${etdStr}</div>
-      <div>L/C &nbsp;No.: ${lc}</div>
-      <div>AS PER THE CONTRACT NO.${contractNo}</div>
-      <div>DESCRIPTION OF GOODS: ${product}</div>
-    </div>
-    <br>
-    <div style="font-size:13px;">Thanks,</div>
-    <div style="font-size:13px;">Best Regards,</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.26: Beneficiary's Certificate Simple (VAN DIEM / XUAN MAI)
-══════════════════════════════════════ */
-function renderBeneCertSimple(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const blNo=bk.cr49f_bl_number||'';
-  const lc=getLcNo();
-  const product=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))].join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-
-  const declare=S.beneCertText||
-    'WE, LEENEAR CORPORATION HEREBY DECLARE THAT: LEAST 10 DAYS FREE TIME OF DEMURRAGE AND 04 DAYS OF DETENTION AT DESTINATION PORT.';
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date: &nbsp;&nbsp;&nbsp;${issuanceDate}</div>
-      <div>InvoiceNo.: &nbsp;${invoiceNo}</div>
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      ADD: VORT SUIDOBASHI 3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064<br>
-      TEL: +81-3-3528-9850 &nbsp;&nbsp; FAX: +81-3-3528-9851
-    </div>
-    <div class="cert-party-block">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${S.importerName||'—'}<br>
-      ${S.importerAddr?'ADD: '+S.importerAddr:''}
-      ${S.importerTel?'<br>'+S.importerTel+(S.importerFax?'&nbsp;&nbsp;'+S.importerFax:''):''}
-    </div>
-    <div class="ft-declare">${declare}</div>
-    <div class="cert-items">
-      <div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">L/C NO.</span><span class="cert-item-val">${lc}</span></div>
-      <div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">DESCRIPTION OF GOODS</span><span class="cert-item-val">${product}</span></div>
-      ${blNo?`<div class="cert-item"><span class="cert-bullet">•</span><span class="cert-item-label">B/L No.</span><span class="cert-item-val">${blNo}</span></div>`:''}
-    </div>
-    <br>
-    <div class="cert-confirm-bold">WE HEREBY CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.27: Beneficiary's Certificate (XSD)
-══════════════════════════════════════ */
-function renderBeneCertXSD(){
-  const bk=S.booking;
-  const sc=S.saleContract;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etd=getEtd(bk);
-  const eta=getEta(bk);
-  const etdStr=fmtDateEn(etd);
-  const etaStr=fmtDateEn(eta);
-  const blNo=bk.cr49f_bl_number||'—';
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const carrier=S.carrierName||'—';
-  const lc=getLcNo();
-  const contractNo=S.poVo||sc?.cr49f_sale_contract_no||'—';
-  const priceUsd=S.saleDetail?.cr49f_price||0;
-  const contractQty=S.contractQuantityMt||0;
-  const valueStr='USD '+Math.round(S.amountUsd).toLocaleString('en-US');
-  const sentDateStr=fmtDateSent(etd);
-
-  // 품목 (선적 품목 조인 우선)
-  const detailList=getShippedDetails();
-  const product=[...new Set(detailList.map(d=>d.crcf9_productname).filter(Boolean))].join(', ')
-    ||S.siDetail?.crcf9_productname||'WASTE PAPER';
-
-  // IMPORTER 정보 (COMPASS crcf9_notify_party / crcf9_address / crcf9_tel)
-  const importerName=S.importerName||'XSD INTERNATIONAL PAPER SDN BHD';
-  const importerAddr=S.importerAddr||'NO. 441, BANGUNAN XSD INTERNATIONAL PAPER SDN BHD, 09400 PADANG MEHA, KULIM, KEDAH, MALAYSIA.';
-  const importerTel=S.importerTel||'TEL: +60 4 688 9069';
-
-  // To 이메일 (COMPASS crcf9_fd_mail 優先、なければ固定)
-  const toEmail=S.importerEmail||'info@xsdcorp.com';
-
-  // 하단 PO / CONTRACT
-  const poNo=S.poNo||'';
-  const poLine=poNo?`<div style="font-size:12px;">PURCHASE ORDER NUMBER (${poNo})</div>`:'';
-  const contractLine=contractNo&&contractNo!=='—'
-    ?`<div style="font-size:12px;">CONTRACT NUMBER (${contractNo})</div>`:'' ;
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title" style="margin:8px 0 4px;">Beneficiary's Certificate</div>
-    <div class="cert-meta" style="margin-bottom:6px;">
-      <div>Date : &nbsp;&nbsp;&nbsp;${etdStr}</div>
-      <div>INVOICE NO. : &nbsp;${invoiceNo}</div>
-    </div>
-
-    <div class="cert-to-block" style="margin-bottom:6px;">
-      <div><strong>TO. ${importerName},</strong></div>
-    </div>
-
-    <div class="cert-party-block" style="margin-bottom:5px;font-size:12px;">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN<br>
-      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
-    </div>
-
-    <div class="cert-party-block" style="margin-bottom:6px;font-size:12px;">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${importerName}<br>
-      ${importerAddr}<br>
-      ${importerTel}
-    </div>
-
-    <div style="font-size:11px;line-height:1.5;margin:4px 0 5px;">
-      <div><span style="font-weight:700;min-width:52px;display:inline-block;">From:</span> rcp@leenearcorp.com</div>
-      <div><span style="font-weight:700;min-width:52px;display:inline-block;">Sent:</span> ${sentDateStr}</div>
-      <div><span style="font-weight:700;min-width:52px;display:inline-block;">To:</span> ${toEmail}</div>
-      <div><span style="font-weight:700;min-width:52px;display:inline-block;">Subject:</span> [Shipping advice for ${invoiceNo}]</div>
-    </div>
-
-    <p style="font-size:11px;margin:3px 0 2px;">Dear ALL,</p>
-    <p style="font-size:11px;margin:0 0 3px;">Please Kindly find one set copy of shipping documents for ${invoiceNo} and loading photos for each container as below</p>
-    <div style="font-size:11px;line-height:1.55;margin-bottom:6px;">
-      -EMPTY CONTAINER<br>
-      -HALF LOADED CONTAINER<br>
-      -FULL LOADED CONTAINER WITH BOTH DOOR OPEN<br>
-      -FULL LOADED CONTAINER WITH ONE DOOR OPEN<br>
-      -FULL LOADED CONTAINER WITH BOTH DOOR CLOSE AND TOGETHER WITH CONTAINER NUMBER
-    </div>
-
-    <div class="bene-table-wrap" style="margin-bottom:8px;">
-      <table class="bene-tbl">
-        <tr>
-          <th>ETD</th><th>ETA</th><th>Invoice_NO</th><th>Carrier</th>
-          <th>NAME OF VESSEL</th><th>BL_NO</th>
-          <th style="text-align:right;white-space:nowrap;line-height:1.5;font-size:10px;">
-            XSD<br>${contractNo}<br>${product}<br>
-            ${priceUsd?'$'+priceUsd.toLocaleString('en-US',{minimumFractionDigits:2}):''}
-            <br>${contractQty?contractQty+' MT':''}
-          </th>
-        </tr>
-        <tr>
-          <td>${etdStr}</td>
-          <td>${etaStr}</td>
-          <td>${invoiceNo}</td>
-          <td>${carrier}</td>
-          <td>${vessel}</td>
-          <td>${blNo}</td>
-          <td style="text-align:right;">${S.totalNwMt.toFixed(2)}</td>
-        </tr>
-        <tr class="bene-tbl-header">
-          <td colspan="6" style="font-weight:700;">Total</td>
-          <td style="text-align:right;font-weight:700;">${S.totalNwMt.toFixed(2)}</td>
-        </tr>
-      </table>
-    </div>
-
-    <div style="font-size:11.5px;margin:5px 0;line-height:1.6;">
-      <div>L/C No.: ${lc}</div>
-      ${poLine}
-      ${contractLine}
-      <div>GOODS: ${product}</div>
-      <div>VALUE OF SHIPMENT: ${valueStr}</div>
-      <div>SHIPMENT DATE : ${etdStr}</div>
-    </div>
-
-    <div style="font-size:12px;margin-top:4px;">Thanks,</div>
-    <div style="font-size:12px;">Best regards,</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.28: Beneficiary's Certificate (SIAM KRAFT)
-══════════════════════════════════════ */
-function renderBeneCertSK(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const etd=getEtd(bk);
-  const etdStr=fmtDateEn(etd);
-  const blNo=bk.cr49f_bl_number||'—';
-
-  // IMPORTER 정보 (COMPASS 자동 취득)
-  const importerName=S.importerName||'SIAM KRAFT INDUSTRY CO., LTD.';
-  const importerAddr=S.importerAddr||'1 SIAM CEMENT ROAD BANGSUE, BANGKOK 10800 THAILAND';
-  const importerTel=S.importerTel||'TEL : 0-2586-2907';
-  const importerFax=S.importerFax||'FAX : 0-2586-2378';
-
-  // PO NO. → COMPASS crcf9_po_vo (LC JSON 불필요)
-  const poNo=S.poVo||'—';
-
-  document.getElementById('doc-bene').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Beneficiary's Certificate</div>
-    <div class="cert-meta">
-      <div>Date : &nbsp;&nbsp;&nbsp;${etdStr}</div>
-      <div>InvoiceNo. : &nbsp;${invoiceNo}</div>
-    </div>
-
-    <div class="cert-to-block">
-      <div><strong>TO. &nbsp;${importerName}.</strong></div>
-    </div>
-
-    <div class="cert-party-block" style="font-size:12.5px;">
-      <div class="cert-exporter-label">EXPORTER</div>
-      LEENEAR CORPORATION<br>
-      VORT SUIDOBASHI3 5FL, 2-8-11 KANDASARUGAKUCHO, CHIYODA, TOKYO, JAPAN, 101-0064<br>
-      TEL : +81-3-3528-9850 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FAX : +81-3-3528-9851
-    </div>
-
-    <div class="cert-party-block" style="font-size:12.5px;">
-      <div class="cert-exporter-label">IMPORTER</div>
-      ${importerName}<br>
-      ${importerAddr}<br>
-      ${importerTel} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${importerFax}
-    </div>
-
-    <div style="margin:18px 0 18px 20px;font-size:12.5px;line-height:1.7;">
-      WE, LEENEAR CORPORATION HEREBY DECLARE THAT:<br>
-      14 DAYS FREE TIME DEMURRAGE AND DETENTION COMBINED
-    </div>
-
-    <div style="font-size:12.5px;line-height:1.8;margin-top:10px;">
-      <div>PO NO.: &nbsp;${poNo}</div>
-      <div>BL NO.: &nbsp;${blNo}</div>
-    </div>
-
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.27: Sent 날짜 포맷 (요일 + 월일연도)
-══════════════════════════════════════ */
-function fmtDateSent(iso){
-  if(!iso) return '—';
-  const d=new Date(iso);
-  if(isNaN(d)) return iso;
-  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  return `${DAYS[d.getDay()]}, ${MON[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.26: Copy of Mail (TAN QUANG 専用)
-══════════════════════════════════════ */
-function renderCopyOfMail(){
-  const bk=S.booking;
-  const invoiceNo=bk.cr49f_invoice_no;
-  const issuanceDate=fmtDateEn(getEtd(bk));
-  const etdStr=fmtDateEn(getEtd(bk));
-  const etaStr=fmtDateEn(getEta(bk));
-  const blNo=bk.cr49f_bl_number||'—';
-  const blDate=fmtDateEn(getEtd(bk));
-  const vessel=bk.cr49f_main_ship_name||'—';
-  const carrier=S.carrierName||'—';
-  const lc=getLcNo();
-  const productLines=[...new Set((getShippedDetails()).map(d=>d.crcf9_productname).filter(Boolean))];
-  const product=productLines.join('<br>')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const productPlain=productLines.join(', ')||S.siDetail?.crcf9_productname||'WASTE PAPER RECYCLING';
-  const pol=bk.crcf9_bl_pol_text||'—';
-  const polJapan=pol.toUpperCase().includes('JAPAN')?pol:pol+', JAPAN';
-  const portOfDest=getPortOfDestination();
-  const amtStr='USD '+S.amountUsd.toLocaleString('en-US',{minimumFractionDigits:2});
-  const toEmail=S.importerEmail||'';
-
-  const declare=S.beneCertText||
-    '01 COPY OF FAX OR EMAIL ADVISING APPLICANT OF PARTICULARS OF SHIPMENT: VESSEL NAME, VOYAGE NO., B/L DATE, B/L NO., DESCRIPTION OF GOODS SHIPPED, L/C NO., INVOICE VALUE, PORT OF LOADING, PORT OF DISCHARGE, ETD, ETA, APPLICANT\'S NAME WITHIN 07 DAYS AFTER SHIPMENT DATE.';
-
-  document.getElementById('doc-mail').innerHTML=`
-    ${certHeader()}
-    <div class="cert-title">Copy of Email</div>
-    <div class="cert-meta">
-      <div>Date : &nbsp;${issuanceDate}</div>
-      <div>InvoiceNo. : &nbsp;${invoiceNo}</div>
-    </div>
-    <div class="cert-to-block">
-      <div><strong>TO. ${S.importerName||'—'}</strong></div>
-      <div>${S.importerAddr||''}</div>
-    </div>
-    <br>
-    <div style="font-size:13px;line-height:1.6;margin-bottom:10px;">${declare}</div>
-
-    <!-- ── Email simulation box ── -->
-    <div style="border:1px solid #888;padding:8px 10px;margin-bottom:10px;font-size:11px;line-height:1.5;background:#fafafa;">
-      <div><span style="font-weight:700;">From:</span> &nbsp;rcp@leenearcorp.com &nbsp;&nbsp;
-           <span style="font-weight:700;">To:</span> &nbsp;${toEmail||S.importerName||'—'}</div>
-      <div><span style="font-weight:700;">Subject:</span> &nbsp;Shipping docs for ${invoiceNo} ${productPlain}</div>
-      <br>
-      <div style="margin-bottom:4px;">Dear ALL,</div>
-      <div style="margin-bottom:6px;">Please confirm the following shipment details of NV ${invoiceNo} :</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
-        <tr style="background:#333;color:#fff;">
-          <th style="padding:2px 4px;text-align:left;">ETD</th>
-          <th style="padding:2px 4px;text-align:left;">ETA</th>
-          <th style="padding:2px 4px;text-align:left;">Invoice NO</th>
-          <th style="padding:2px 4px;text-align:left;">Carrier</th>
-          <th style="padding:2px 4px;text-align:left;">NAME OF VESSEL</th>
-          <th style="padding:2px 4px;text-align:left;">B/L No. &amp; DATE</th>
-          <th style="padding:2px 4px;text-align:right;">MT</th>
-        </tr>
-        <tr style="background:#ffffcc;">
-          <td style="padding:2px 4px;border:1px solid #ccc;">${etdStr}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;">${etaStr}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;">${invoiceNo}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;">${carrier}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;">${vessel}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;">${blNo} ${blDate}</td>
-          <td style="padding:2px 4px;border:1px solid #ccc;text-align:right;">${S.totalNwMt.toFixed(2)}</td>
-        </tr>
-      </table>
-      <br>
-      <div style="font-weight:700;">✦ LEENEAR CORPORATION &nbsp;|&nbsp; rcp@leenearcorp.com &nbsp;|&nbsp; TEL: +81-3-3528-9850</div>
-    </div>
-
-    <div class="cert-items">
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label" style="min-width:230px;">DESCRIPTION OF GOODS SHIPPED</span><span class="cert-item-val">${product}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">LC NO.</span><span class="cert-item-val">${lc}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L DATE</span><span class="cert-item-val">${blDate}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">B/L NO.</span><span class="cert-item-val">${blNo}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">PORT OF LOADING</span><span class="cert-item-val">${polJapan}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">INVOICE VALUE</span><span class="cert-item-val">${amtStr}</span></div>
-      <div class="cert-item"><span class="cert-bullet">·</span><span class="cert-item-label">PORT OF DISCHARGE</span><span class="cert-item-val">${portOfDest}</span></div>
-    </div>
-    <br>
-    <div style="font-size:13px;">Thank you &amp; Best Regards,</div>
-    ${certBottom()}
-    <div class="cert-spacer"></div>
-    ${certSig()}`;
-}
-
-/* ══════════════════════════════════════
-   v1.29: 업체에서 선택 모드
-══════════════════════════════════════ */
-
-function switchSearchMode(mode){
-  const selectPanel=document.getElementById('selectModePanel');
-  const manualPanel=document.getElementById('manualModePanel');
-  const selectBtn=document.getElementById('modeSelectBtn');
-  const manualBtn=document.getElementById('modeManualBtn');
-  if(mode==='select'){
-    selectPanel.style.display='';
-    manualPanel.style.display='none';
-    selectBtn.className='btn btn-sm btn-secondary';
-    manualBtn.className='btn btn-sm btn-ghost';
-  } else {
-    selectPanel.style.display='none';
-    manualPanel.style.display='';
-    manualBtn.className='btn btn-sm btn-secondary';
-    selectBtn.className='btn btn-sm btn-ghost';
-  }
-}
-
-async function initBuyerSelector(){
-  if(!S.token) return;
-  // 既にロード済みなら再ロードしない
-  if(Object.keys(S.buyerBookingsMap).length>0){
-    _renderBuyerDropdown();
-    return;
-  }
-  showStatus('selectorStatus','info','<span class="spin">⟳</span> 会社マスターロード中...');
-  try{
-    // ── Step 1: Buyer 마스터 전체 캐시 ──
-    const buyerRes=await dvGet(
-      `cr49f_buyers?$select=cr49f_buyerid,cr49f_buyer_name,cr49f_buyer_code&$top=500`
-    );
-    S.buyerMap={};
-    (buyerRes.value||[]).forEach(b=>{
-      S.buyerMap[b.cr49f_buyerid]=b.cr49f_buyer_name||b.cr49f_buyer_code||'—';
-    });
-
-    // ── Step 2: 최근 6개월 Booking 조회 ──
-    showStatus('selectorStatus','info','<span class="spin">⟳</span> 最近6ヶ月のブッキング照会中...');
-    const sixAgo=new Date();
-    sixAgo.setMonth(sixAgo.getMonth()-6);
-    const dateStr=sixAgo.toISOString();
-    const bkgRes=await dvGet(
-      `cr49f_bookings?$filter=cr49f_etd ge ${dateStr}`+
-      `&$select=cr49f_invoice_no,cr49f_etd,crcf9_bl_etd,_cr49f_sale_contract_id_value`+
-      `&$orderby=crcf9_bl_etd desc,cr49f_etd desc&$top=300`
-    );
-    const bookings=bkgRes.value||[];
-
-    // ── Step 3: 고유 Sale Contract 병렬 조회 → buyer_id 취득 ──
-    const scIds=[...new Set(bookings.map(b=>b['_cr49f_sale_contract_id_value']).filter(Boolean))];
-    showStatus('selectorStatus','info',`<span class="spin">⟳</span> 販売契約 ${scIds.length}件 照会中...`);
-    const scBuyerMap={};
-    const CHUNK=20;
-    for(let i=0;i<scIds.length;i+=CHUNK){
-      await Promise.all(scIds.slice(i,i+CHUNK).map(async id=>{
-        try{
-          const sc=await dvGet(
-            `cr49f_sale_contracts(${id})?$select=cr49f_sale_contractid,_cr49f_buyer_id_value`
-          );
-          if(sc._cr49f_buyer_id_value) scBuyerMap[id]=sc._cr49f_buyer_id_value;
-        }catch(e){}
-      }));
-    }
-
-    // ── Step 4: 업체별 IV 목록 그룹핑 ──
-    S.buyerBookingsMap={};
-    bookings.forEach(b=>{
-      const scId=b['_cr49f_sale_contract_id_value'];
-      const buyerId=scBuyerMap[scId];
-      const buyerName=buyerId&&S.buyerMap[buyerId]?S.buyerMap[buyerId]:null;
-      if(!buyerName) return;
-      const etd=b.crcf9_bl_etd||b.cr49f_etd||'';
-      if(!S.buyerBookingsMap[buyerName]) S.buyerBookingsMap[buyerName]=[];
-      S.buyerBookingsMap[buyerName].push({invoiceNo:b.cr49f_invoice_no,etd});
-    });
-
-    _renderBuyerDropdown();
-    const buyerCount=Object.keys(S.buyerBookingsMap).length;
-    showStatus('selectorStatus','ok',`✅ ${buyerCount}社 / ${bookings.length}件 ロード完了`);
-  }catch(e){
-    showStatus('selectorStatus','err','ロード失敗: '+e.message);
-  }
-}
-
-function _renderBuyerDropdown(){
-  const names=Object.keys(S.buyerBookingsMap).sort();
-  const sel=document.getElementById('buyerSelect');
-  if(!sel) return;
-  sel.innerHTML='<option value="">-- 会社を選択 --</option>'+
-    names.map(n=>`<option value="${n}">${n}</option>`).join('');
-}
-
-function onBuyerChange(){
-  const name=document.getElementById('buyerSelect').value;
-  const ivSel=document.getElementById('ivSelect');
-  if(!name){ivSel.innerHTML='<option value="">-- 会社選択後 --</option>';return;}
-  const list=(S.buyerBookingsMap[name]||[]).slice().sort((a,b)=>(b.etd||'').localeCompare(a.etd||''));
-  ivSel.innerHTML='<option value="">-- IVを選択 --</option>'+
-    list.map(item=>{
-      const d=item.etd?` (${item.etd.slice(0,10)})`:'';
-      return `<option value="${item.invoiceNo}">${item.invoiceNo}${d}</option>`;
-    }).join('');
-}
-
-function loadSelectedIv(){
-  const iv=document.getElementById('ivSelect').value;
-  if(!iv){showStatus('loadStatus','warn','Invoice No.を選択してください。');return;}
-
-  loadInvoice(iv);
-}
-
-function showTab(name){
-  const el=document.getElementById('tab-'+name);
-  if(el) el.style.display='';
-}
-
-function hideTab(name){
-  const el=document.getElementById('tab-'+name);
-  if(el) el.style.display='none';
-}
-
-/* ══════════════
-   UI Helpers
-══════════════ */
-function showStatus(id,type,msg){
-  const el=document.getElementById(id);
-  if(!el) return;
-  el.className=`status show ${type}`;
-  el.innerHTML=msg;
-}
-
-function updateBadge(id,text){
-  const el=document.getElementById(id);
-  if(el) el.textContent=text;
-}
-
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach((t,i)=>{
-    const panels=['search','verify','qq','co','bene','ft','esl','mail'];
-    t.classList.toggle('active',panels[i]===name);
-  });
-  document.querySelectorAll('.panel').forEach(p=>{
-    p.classList.toggle('active',p.id===`panel-${name}`);
-  });
-}
-
-function printDocs(tab){
-  const iv=S.invoiceNo||'DOC';
-  const nameMap={qq:`${iv}_QQ`,co:`${iv}_CO`,bene:`${iv}_BC`,ft:`${iv}_FT`,esl:`${iv}_ESL`,mail:`${iv}_MAIL`};
-  const origTitle=document.title;
-  if(nameMap[tab]) document.title=nameMap[tab];
-  window.addEventListener('afterprint',()=>{document.title=origTitle;},{once:true});
-  switchTab(tab);
-  setTimeout(()=>window.print(),200);
-}
-
-/* ══════════════
-   Init
-══════════════ */
-window.addEventListener('DOMContentLoaded',async()=>{
-  // Restore theme
-  const savedTheme=localStorage.getItem('leenai_theme')||'dark';
-  document.documentElement.dataset.theme=savedTheme;
-  const themeBtn=document.getElementById('themeToggleBtn');
-  if(themeBtn) themeBtn.textContent=savedTheme==='light'?'☀️ ライト':'🌙 ダーク';
-
-  await handleCallback();
-});
+/* ══════════════════════════════════════════
+   SECTION: INIT
+══════════════════════════════════════════ */
+window.addEventListener('load', handleCallback);
 </script>
 </body>
 </html>
