@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.2</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.4</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -142,6 +142,21 @@ input,select,textarea{font-family:inherit;}
 @media print{
   .hdr,.card:not(.result-card),.powered{display:none!important;}
 }
+
+/* ── LC JSON ドロップゾーン ── */
+.drop-zone{
+  border:2px dashed var(--border2);border-radius:8px;padding:14px 16px;
+  text-align:center;cursor:pointer;transition:all .2s;color:var(--text3);font-size:12px;
+  margin-top:10px;
+}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.06);}
+.drop-zone.loaded{border-color:var(--ok);color:var(--ok);background:rgba(34,197,94,.06);}
+.icc-select{background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);padding:5px 9px;font-size:12px;outline:none;cursor:pointer;}
+.icc-select:focus{border-color:var(--accent);}
+.icc-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px;}
+.icc-badge-a{background:rgba(79,142,247,.18);color:var(--accent);}
+.icc-badge-c{background:rgba(245,158,11,.18);color:var(--warn);}
 </style>
 </head>
 <body>
@@ -158,7 +173,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.2</div>
+    <div class="hdr-ver" id="header-sub">v1.4</div>
   </div>
 </div>
 
@@ -199,6 +214,22 @@ input,select,textarea{font-family:inherit;}
       <button class="btn btn-primary" id="searchBtn" onclick="fetchData()" style="min-width:80px;">🔍 取得</button>
     </div>
     <div id="searchMsg"></div>
+    <!-- LC JSON オプション取込 -->
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">
+        📄 LC JSON 取込 <span style="font-size:11px;font-weight:400;color:var(--text3);">— ICC条件を自動判別します（省略可）</span>
+      </div>
+      <div class="drop-zone" id="lcDropZone"
+        onclick="document.getElementById('lcFileInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleLcDrop(event)">
+        📂 LC JSON をドロップ または クリックして選択
+      </div>
+      <input type="file" id="lcFileInput" accept=".json" style="display:none"
+        onchange="handleLcFile(this.files[0])">
+      <div id="lcJsonMsg" style="font-size:11px;margin-top:5px;"></div>
+    </div>
   </div>
 
   <!-- STEP 3: 結果 -->
@@ -219,6 +250,16 @@ input,select,textarea{font-family:inherit;}
       <div class="result-card-title">
         🗂️ 画面① — 保険基本情報
         <button class="btn btn-copy" onclick="copySection('screen1Text','copyBtn1')" id="copyBtn1">📋 コピー</button>
+      </div>
+      <!-- ICC 条件セレクター -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;
+           background:var(--surface2);border-radius:7px;border:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--text2);font-weight:600;">保険条件 (Conditions)</span>
+        <select class="icc-select" id="iccSelect" onchange="onIccChange()">
+          <option value="A">ICC (A) — All Risk</option>
+          <option value="C">ICC (C) — Limited</option>
+        </select>
+        <span id="iccBadge" class="icc-badge icc-badge-a">LC判別: ICC(A)</span>
       </div>
       <div class="result-grid" id="screen1Grid"></div>
       <div style="display:none;" id="screen1Text"></div>
@@ -294,6 +335,124 @@ const INDONESIA_AGENT = {
   tel:     '(62) 21-252-3110',
   fax:     '(62)21-252-4084',
 };
+
+/* ══════════════════════════════════════════
+   SECTION: ICC CONDITIONS MASTER
+══════════════════════════════════════════ */
+const ICC_CONDITIONS = {
+  A: `INSTITUTE CARGO CLAUSES (A)
+EXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /
+THEFT, PILFERAGE & NON-DELIVERY /
+BREAKAGE, BENDING, DENTING & SCRATCHING.`,
+  C: `INSTITUTE CARGO CLAUSES (C)
+EXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /
+THEFT, PILFERAGE & NON-DELIVERY /
+BREAKAGE, BENDING, DENTING & SCRATCHING.`,
+};
+
+let lcJsonData = null;        // LC JSON 取込データ
+let currentResultData = null; // 現在の検索結果 (Goods再描画用)
+
+/* ── LC JSON 取込 ── */
+function handleLcDrop(e){
+  e.preventDefault();
+  document.getElementById('lcDropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) handleLcFile(file);
+}
+
+function handleLcFile(file){
+  if(!file || !file.name.endsWith('.json')){
+    showLcMsg('❌ .json ファイルを選択してください', 'err'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const raw = JSON.parse(e.target.result);
+      // 配列でも単体でもOK
+      lcJsonData = Array.isArray(raw) ? raw[0] : raw;
+      detectIcc(lcJsonData);
+    }catch(err){
+      showLcMsg('❌ JSONの解析に失敗しました: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function detectIcc(lcData){
+  const insCondRaw = (lcData.insuranceCondition || lcData.insurance_condition || '').toUpperCase();
+  let detected = 'A'; // デフォルト ICC(A)
+  if(/ICC\s*[\(\[]?\s*C\s*[\)\]]?/.test(insCondRaw)){
+    detected = 'C';
+  } else if(/ICC\s*[\(\[]?\s*A\s*[\)\]]?/.test(insCondRaw)){
+    detected = 'A';
+  }
+
+  lcJsonData._iccDetected = detected;
+  const sel = document.getElementById('iccSelect');
+  if(sel) sel.value = detected;
+
+  const badge = document.getElementById('iccBadge');
+  if(badge){
+    badge.textContent = `LC判別: ICC(${detected})`;
+    badge.className = `icc-badge ${detected==='A'?'icc-badge-a':'icc-badge-c'}`;
+  }
+
+  // ドロップゾーン表示更新
+  const zone = document.getElementById('lcDropZone');
+  if(zone){
+    zone.classList.add('loaded');
+    zone.textContent = `✅ ${lcJsonData.contractNo||lcJsonData.id||'LC'} 取込済 — ICC(${detected}) を推奨`;
+  }
+  showLcMsg(`✅ ICC(${detected}) と判別しました。変更は上のセレクターから。`, 'ok');
+
+  // 結果が既に表示されていれば Conditions を更新
+  onIccChange();
+}
+
+function showLcMsg(msg, type){
+  const el = document.getElementById('lcJsonMsg');
+  if(!el) return;
+  const cls = {ok:'color:var(--ok)',err:'color:var(--danger)',info:'color:var(--text2)'}[type]||'';
+  el.innerHTML = `<span style="${cls}">${escapeHtml(msg)}</span>`;
+}
+
+function onIccChange(){
+  const iccType = document.getElementById('iccSelect')?.value || 'A';
+  // badge更新
+  const badge = document.getElementById('iccBadge');
+  if(badge && lcJsonData?._iccDetected){
+    const detected = lcJsonData._iccDetected;
+    const changed = iccType !== detected;
+    badge.textContent = changed
+      ? `LC判別: ICC(${detected}) → 手動: ICC(${iccType})`
+      : `LC判別: ICC(${iccType})`;
+    badge.className = `icc-badge ${iccType==='A'?'icc-badge-a':'icc-badge-c'}`;
+  }
+  // 画面① Conditions 再レンダリング
+  refreshScreen1();
+  // 画面③ Goods テキスト 再描画
+  renderGoods(currentResultData, iccType);
+}
+
+function refreshScreen1(){
+  // 現在の ivNo を取得
+  const ivNo = document.getElementById('resInvoice')?.textContent || '';
+  if(!ivNo) return;
+  const iccType = document.getElementById('iccSelect')?.value || 'A';
+  const s1Items = [
+    ['保険種目',       '輸出'],
+    ['Open Policy No.', OPEN_POLICY_NO],
+    ['Assured(s)',      ASSURED],
+    ['Invoice No.',     ivNo],
+    ['Claim, if any, payable at/in', 'DESTINATION'],
+    ['Conditions',     ICC_CONDITIONS[iccType]],
+    ['Local Vessel or Conveyance', 'LAND CONVEYANCE'],
+  ];
+  renderGrid('screen1Grid', s1Items);
+  document.getElementById('screen1Text').textContent =
+    s1Items.map(([l,v])=>`${l}: ${v}`).join('\n');
+}
 
 /* ══════════════════════════════════════════
    SECTION: AUTH STATE
@@ -541,13 +700,14 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   document.getElementById('resLcNo').textContent = lcNo;
 
   // ── 画面① ──
+  const iccType = document.getElementById('iccSelect')?.value || 'A';
   const s1Items = [
     ['保険種目',       '輸出'],
     ['Open Policy No.', OPEN_POLICY_NO],
     ['Assured(s)',      ASSURED],
     ['Invoice No.',     ivNo],
     ['Claim, if any, payable at/in', 'DESTINATION'],
-    ['Conditions',     'INSTITUTE CARGO CLAUSES (A)\nEXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /\nTHEFT, PILFERAGE & NON-DELIVERY /\nBREAKAGE, BENDING, DENTING & SCRATCHING.'],
+    ['Conditions',     ICC_CONDITIONS[iccType]],
     ['Local Vessel or Conveyance', 'LAND CONVEYANCE'],
   ];
   renderGrid('screen1Grid', s1Items);
@@ -565,10 +725,7 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   renderGrid('screen2Grid', s2Items);
   document.getElementById('screen2Text').textContent = s2Items.filter(([,v])=>v).map(([l,v])=>`${l}: ${v}`).join('\n');
 
-  // ── 画面③ Goods テキスト ──
-  const goodsContainer = document.getElementById('goodsContainer');
-  goodsContainer.innerHTML = '';
-
+  // ── 画面③ Goods テキスト — データ整理 ──
   // sale_detail_id → container グルーピング
   const ctByDetail = {};
   containers.forEach(ct=>{
@@ -578,15 +735,11 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
     ctByDetail[key].nwKg  += (ct.crcf9_n_w||0);
   });
 
-  // アイテムがない場合のフォールバック (全コンテナ合計)
-  const detailKeys = Object.keys(ctByDetail);
   const items = [];
-
   if(siDetails.length>0){
     siDetails.forEach(det=>{
       const sdId = det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '';
       const ct = ctByDetail[sdId] || {bales:0, nwKg:0};
-      // sale_detail_idがマッチしない場合は全コンテナ合算
       const useCt = ct.nwKg>0 ? ct : sumAllCt(ctByDetail);
       items.push({
         productname: det.crcf9_productname||'',
@@ -598,55 +751,16 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
       });
     });
   } else {
-    // S/I Detailなし → コンテナ合算のみ
     const total = sumAllCt(ctByDetail);
-    items.push({
-      productname:'', hsCode:'', price:'',
-      bales:total.bales, nwMt:total.nwKg/1000, sdId:'all'
-    });
+    items.push({ productname:'', hsCode:'', price:'',
+      bales:total.bales, nwMt:total.nwKg/1000, sdId:'all' });
   }
 
-  // Goods ブロック生成
-  items.forEach((item, idx)=>{
-    const balesStr = item.bales>0 ? item.bales : 'XX';
-    const mtStr    = item.nwMt>0  ? item.nwMt.toFixed(2) : 'XX.XX';
-    const prodRaw  = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
-    // productname に "EX JAPAN" が含まれる場合は追加しない
-    const hasExJapan = /EX\s+JAPAN/i.test(prodRaw);
-    const prodName = hasExJapan ? prodRaw : prodRaw + ' EX JAPAN';
-    const hsLine   = item.hsCode || '';
+  // 現在データを保存 → ICC変更時に再描画
+  currentResultData = { lcNo, voNo, poVo, country, agent, items };
 
-    const goodsText =
-`${prodName}, ${balesStr}BALES, ${mtStr}MT
-L/C NO. ${lcNo}
-PURCHASE ORDER ${poVo}
-VO NUMBER ${voNo}
-${hsLine}
-FOR ${INS_RATIO} PERCENT OF CIF VALUE. INSURANCE MUST COVERING ALL RISK (ICC A)
-INSTITUTE WAR CLAUSE. INSTITUTE STRIKES, RIOTS, AND CIVIL COMMOTIONS CLAUSES,
-CLAIM PAYABLE IN ${country} IN THE CURRENCY OF THE LC,
-NAME OF AGENT: ${agent.name}
-ADDRESS: ${agent.address}
-TEL: ${agent.tel}
-FAX: ${agent.fax}`.trim();
-
-    const blockId = `goodsText${idx}`;
-    const btnId   = `copyBtnGoods${idx}`;
-
-    const div = document.createElement('div');
-    div.innerHTML = `
-      ${idx>0?'<hr class="item-sep">':''}
-      <div class="goods-header">
-        <div class="goods-label">
-          ${items.length>1 ? `📦 アイテム ${idx+1}: ${prodName}` : '📦 Goods テキスト (貨物明細欄に貼り付け)'}
-        </div>
-        <button class="btn btn-copy" onclick="copySection('${blockId}','${btnId}')" id="${btnId}">📋 コピー</button>
-      </div>
-      <div class="goods-box" id="${blockId}_display">${escapeHtml(goodsText)}</div>
-      <div style="display:none;" id="${blockId}">${goodsText}</div>
-    `;
-    goodsContainer.appendChild(div);
-  });
+  // Goods 描画
+  renderGoods(currentResultData, document.getElementById('iccSelect')?.value || 'A');
 
   // Invoice Value 自動計算 (単価 × 重量MT の合計)
   const cifAuto = items.reduce((sum, item)=>{
@@ -663,6 +777,72 @@ FAX: ${agent.fax}`.trim();
   // 結果表示
   document.getElementById('stepResult').style.display = 'block';
   document.getElementById('stepResult').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ══════════════════════════════════════════
+   SECTION: GOODS RENDER (분리된 함수 — ICC変更で再描画)
+══════════════════════════════════════════ */
+
+// 保険条件テキスト生成 (LC JSON / ICC選択 / 国マスター から組み立て)
+function buildInsuranceClause(iccType, country, agent){
+  const ratio = (lcJsonData?.insuranceRatio) || INS_RATIO;
+  return [
+    `FOR ${ratio} PERCENT OF CIF VALUE. INSURANCE MUST COVERING ALL RISK (ICC ${iccType})`,
+    `INSTITUTE WAR CLAUSE. INSTITUTE STRIKES, RIOTS, AND CIVIL COMMOTIONS CLAUSES,`,
+    `CLAIM PAYABLE IN ${country} IN THE CURRENCY OF THE LC,`,
+    `NAME OF AGENT: ${agent.name}`,
+    `ADDRESS: ${agent.address}`,
+    `TEL: ${agent.tel}`,
+    `FAX: ${agent.fax}`,
+  ].join('\n');
+}
+
+function renderGoods(data, iccType){
+  if(!data) return;
+  const { lcNo, voNo, poVo, country, agent, items } = data;
+  const goodsContainer = document.getElementById('goodsContainer');
+  if(!goodsContainer) return;
+  goodsContainer.innerHTML = '';
+
+  const insClause = buildInsuranceClause(iccType, country, agent);
+
+  items.forEach((item, idx)=>{
+    const balesStr = item.bales>0 ? item.bales : 'XX';
+    const mtStr    = item.nwMt>0  ? item.nwMt.toFixed(2) : 'XX.XX';
+    const prodRaw  = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
+    const hasExJapan = /EX\s+JAPAN/i.test(prodRaw);
+    const prodName = hasExJapan ? prodRaw : prodRaw + ' EX JAPAN';
+    const hsLine   = item.hsCode || '';
+
+    // 値がある行だけ組み立て (L/C NO. / VO NUMBER は値がない場合スキップ)
+    const lines = [];
+    lines.push(`${prodName}, ${balesStr}BALES, ${mtStr}MT`);
+    if(lcNo)  lines.push(`L/C NO. ${lcNo}`);
+    if(poVo)  lines.push(`PURCHASE ORDER ${poVo}`);
+    if(voNo)  lines.push(`VO NUMBER ${voNo}`);
+    if(hsLine) lines.push(hsLine);
+    lines.push(insClause);
+
+    const goodsText = lines.join('\n');
+
+    const blockId = `goodsText${idx}`;
+    const btnId   = `copyBtnGoods${idx}`;
+    const div = document.createElement('div');
+    div.innerHTML = `
+      ${idx>0?'<hr class="item-sep">':''}
+      <div class="goods-header">
+        <div class="goods-label">
+          ${items.length>1
+            ? `📦 アイテム ${idx+1}: ${escapeHtml(prodName)}`
+            : '📦 Goods テキスト (貨物明細欄に貼り付け)'}
+        </div>
+        <button class="btn btn-copy" onclick="copySection('${blockId}','${btnId}')" id="${btnId}">📋 コピー</button>
+      </div>
+      <div class="goods-box" id="${blockId}_display">${escapeHtml(goodsText)}</div>
+      <div style="display:none;" id="${blockId}">${goodsText}</div>
+    `;
+    goodsContainer.appendChild(div);
+  });
 }
 
 function sumAllCt(ctByDetail){
@@ -769,6 +949,9 @@ function resetSearch(){
   document.getElementById('insCalcResult').style.display='none';
   document.getElementById('cifDisplayVal').textContent='— (上記フォームに入力)';
   document.getElementById('copyBtnCif').style.display='none';
+  // ICC / LC JSON リセット (ドロップゾーンは維持 — 再利用可)
+  document.getElementById('iccSelect').value = lcJsonData?._iccDetected || 'A';
+  document.getElementById('insCalcNote').textContent = '金額を入力すると保険金額 (×1.10) を表示します';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
