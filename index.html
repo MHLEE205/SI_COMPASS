@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.5</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.6</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -186,7 +186,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.5</div>
+    <div class="hdr-ver" id="header-sub">v1.6</div>
   </div>
 </div>
 
@@ -335,16 +335,19 @@ const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const SCOPE        = `${DV_URL}/user_impersonation openid profile email offline_access`;
 
 // 保険固定値
-const OPEN_POLICY_NO  = 'NOP-117206';
-const ASSURED         = 'LEENEAR CORPORATION';
-const INS_RATIO       = 110; // %
+const OPEN_POLICY_NO = 'NOP-117206';
+const ASSURED        = 'LEENEAR CORPORATION';
+const INS_RATIO      = 110; // デフォルト (LC JSONがある場合はinsuranceRatioを使用)
 
-// インドネシア Agent マスター (固定)
-const INDONESIA_AGENT = {
-  name:    'P.T. ASURANSI MSIG INDONESIA',
-  address: 'SUMMITMAS 11, 15TH FLOOR, JALAN JEND. SUDIRMAN, KAV. 61-62, JAKARTA 12190, INDONESIA',
-  tel:     '(62) 21-252-3110',
-  fax:     '(62)21-252-4084',
+// 国別 Agent マスター (今はインドネシアのみ。他国は随時追加)
+const AGENTS_MASTER = {
+  'INDONESIA': {
+    name:    'P.T. ASURANSI MSIG INDONESIA',
+    address: 'SUMMITMAS 11, 15TH FLOOR, JALAN JEND. SUDIRMAN, KAV. 61-62, JAKARTA 12190, INDONESIA',
+    tel:     '(62) 21-252-3110',
+    fax:     '(62)21-252-4084',
+  },
+  // 'VIETNAM': { ... },  // 追加予定
 };
 
 /* ══════════════════════════════════════════
@@ -696,10 +699,6 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   const voNo = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
   const poVo = siData?.crcf9_po_vo || '';
 
-  // 国判定 (INDONESIA固定 for now)
-  const country = 'INDONESIA';
-  const agent = INDONESIA_AGENT;
-
   // ETD整形
   const etdFormatted = formatDateForInsurance(etd);
 
@@ -768,7 +767,7 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   }
 
   // 現在データを保存 → ICC変更時に再描画
-  currentResultData = { lcNo, voNo, poVo, country, agent, items };
+  currentResultData = { lcNo, voNo, poVo, items };
 
   // Goods 描画
   renderGoods(currentResultData, document.getElementById('iccSelect')?.value || 'A');
@@ -794,28 +793,66 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
    SECTION: GOODS RENDER (분리된 함수 — ICC変更で再描画)
 ══════════════════════════════════════════ */
 
-// 保険条件テキスト生成 (LC JSON / ICC選択 / 国マスター から組み立て)
-function buildInsuranceClause(iccType, country, agent){
-  const ratio = (lcJsonData?.insuranceRatio) || INS_RATIO;
-  return [
-    `FOR ${ratio} PERCENT OF CIF VALUE. INSURANCE MUST COVERING ALL RISK (ICC ${iccType})`,
-    `INSTITUTE WAR CLAUSE. INSTITUTE STRIKES, RIOTS, AND CIVIL COMMOTIONS CLAUSES,`,
-    `CLAIM PAYABLE IN ${country} IN THE CURRENCY OF THE LC,`,
-    `NAME OF AGENT: ${agent.name}`,
-    `ADDRESS: ${agent.address}`,
-    `TEL: ${agent.tel}`,
-    `FAX: ${agent.fax}`,
-  ].join('\n');
+// 保険条件テキスト生成
+// LC JSONがある場合 → insuranceCondition原文から抽出 + ICC置換 + Agentマスター追加
+// LC JSONがない場合 → null を返す (renderGoods側で警告表示)
+function buildInsuranceClause(iccType){
+  if(!lcJsonData?.insuranceCondition){
+    return null; // LC JSON 未取込 → 呼び出し側で警告表示
+  }
+
+  const raw = lcJsonData.insuranceCondition || '';
+
+  // "FOR N PERCENT..." の開始位置を探す
+  const forIdx = raw.toUpperCase().indexOf('FOR ');
+  if(forIdx < 0) return null;
+
+  // "CLAIM PAYABLE IN ... THE LC" の終端を探す
+  const upperRaw = raw.toUpperCase();
+  const claimIdx = upperRaw.indexOf('CLAIM PAYABLE IN', forIdx);
+  const theLcIdx = claimIdx >= 0 ? upperRaw.indexOf('THE LC', claimIdx) : -1;
+
+  let mainClause = '';
+  if(theLcIdx >= 0){
+    mainClause = raw.substring(forIdx, theLcIdx + 'THE LC'.length);
+    // 末尾にカンマ付与 (なければ)
+    if(!mainClause.trimEnd().endsWith(',')) mainClause = mainClause.trimEnd() + ',';
+  } else {
+    // 見つからない場合はFOR以降を全部使う
+    mainClause = raw.substring(forIdx).trim();
+  }
+
+  // ICC条件をドロップダウン選択値に置換
+  mainClause = mainClause.replace(/ICC\s*[\(\[]?\s*[ACac]\s*[\)\]]?/g, `ICC ${iccType}`);
+
+  // 国名を取得してAgentマスターを検索
+  const country = (lcJsonData.country || '').toUpperCase();
+  const agent = AGENTS_MASTER[country];
+
+  const lines = [mainClause];
+  if(agent){
+    lines.push(`NAME OF AGENT: ${agent.name}`);
+    lines.push(`ADDRESS: ${agent.address}`);
+    lines.push(`TEL: ${agent.tel}`);
+    lines.push(`FAX: ${agent.fax}`);
+  } else if(country){
+    lines.push(`(${country} 向け Agent 情報: 要手動入力)`);
+  }
+
+  return lines.join('\n');
 }
 
 function renderGoods(data, iccType){
   if(!data) return;
-  const { lcNo, voNo, poVo, country, agent, items } = data;
+  const { lcNo, voNo, poVo, items } = data;
   const goodsContainer = document.getElementById('goodsContainer');
   if(!goodsContainer) return;
   goodsContainer.innerHTML = '';
 
-  const insClause = buildInsuranceClause(iccType, country, agent);
+  const insClause = buildInsuranceClause(iccType);
+  const insWarning = insClause === null
+    ? '(⚠️ 保険条件: LC JSON を取込後に自動生成されます)'
+    : null;
 
   items.forEach((item, idx)=>{
     const balesStr = item.bales>0 ? item.bales : 'XX';
@@ -832,7 +869,7 @@ function renderGoods(data, iccType){
     if(poVo)  lines.push(`PURCHASE ORDER ${poVo}`);
     if(voNo)  lines.push(`VO NUMBER ${voNo}`);
     if(hsLine) lines.push(hsLine);
-    lines.push(insClause);
+    if(insClause) lines.push(insClause);
 
     const goodsText = lines.join('\n');
 
@@ -851,6 +888,7 @@ function renderGoods(data, iccType){
       </div>
       <div class="goods-box" id="${blockId}_display">${escapeHtml(goodsText)}</div>
       <div style="display:none;" id="${blockId}">${goodsText}</div>
+      ${insWarning ? `<div class="alert alert-warn" style="margin-top:8px;font-size:11px;">${escapeHtml(insWarning)}</div>` : ''}
     `;
     goodsContainer.appendChild(div);
   });
