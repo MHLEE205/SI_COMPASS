@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-D-04 | 保険入力支援ツール v1.8-debug</title>
+<title>SYS-D-04 | 保険入力支援ツール v1.9</title>
 <style>
 /* ── CSS変数 (DARK/LIGHT 二テーマ) ── */
 :root {
@@ -186,7 +186,7 @@ input,select,textarea{font-family:inherit;}
     </div>
     <button class="btn btn-secondary" id="authBtn" onclick="handleAuthClick()" style="font-size:11px;padding:5px 12px;">🔑 ログイン</button>
     <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 ダーク</button>
-    <div class="hdr-ver" id="header-sub">v1.8d</div>
+    <div class="hdr-ver" id="header-sub">v1.9</div>
   </div>
 </div>
 
@@ -796,30 +796,29 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, sale
   // saleDetails を Map化 (sale_detailid → price) — 高速検索用
   const salePriceMap = {};
   (saleDetails||[]).forEach(sd=>{
-    salePriceMap[(sd.cr49f_sale_detailid||'').toLowerCase()] = sd.cr49f_price||0;
+    const k = (sd.cr49f_sale_detailid||'').toLowerCase();
+    salePriceMap[k] = sd.cr49f_price||0;
+    salePriceMap[sd.cr49f_sale_detailid] = sd.cr49f_price||0; // 원본 키도 보존
   });
-  console.log('[INS-DEBUG] saleDetails count:', saleDetails.length);
-  console.log('[INS-DEBUG] salePriceMap:', JSON.stringify(salePriceMap));
-  console.log('[INS-DEBUG] siDetails sdIds:', siDetails.map(d=>d._crcf9_sale_detail_id_value));
 
   if(siDetails.length>0){
     siDetails.forEach(det=>{
       const sdId = det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '';
-      const ct = ctByDetail[sdId] || {bales:0, nwKg:0};
-      const useCt = ct.nwKg>0 ? ct : sumAllCt(ctByDetail);
-      // cr49f_sale_details の price 優先 (Shipping_Document 同一ロジック)
+      const ct = ctByDetail[sdId];
+      // この Booking にそのアイテムのコンテナがなければスキップ (Shipping_Document 同一ロジック)
+      if(!ct || ct.nwKg === 0) return;
+      // cr49f_sale_details の price 優先 (大文字小文字両対応)
       const sdIdKey = (sdId||'').toLowerCase();
-      const priceFromSale = salePriceMap[sdIdKey];
-      const price = (sdIdKey && priceFromSale != null && priceFromSale !== 0)
+      const priceFromSale = salePriceMap[sdIdKey] ?? salePriceMap[sdId];
+      const price = (priceFromSale != null && priceFromSale !== 0)
         ? priceFromSale
         : (det.crcf9_price||0);
-      console.log('[INS-DEBUG] item:', det.crcf9_productname, '| sdId:', sdId, '| sdIdKey:', sdIdKey, '| priceFromSale:', priceFromSale, '| price used:', price);
       items.push({
         productname: det.crcf9_productname||'',
         hsCode:      det.crcf9_hs_code||'',
         price,
-        bales:       useCt.bales,
-        nwMt:        useCt.nwKg/1000,
+        bales:       ct.bales,
+        nwMt:        ct.nwKg/1000,
         sdId,
       });
     });
