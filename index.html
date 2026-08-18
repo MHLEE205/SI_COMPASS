@@ -230,7 +230,7 @@ input,select,textarea{font-family:inherit;}
     <!-- LC JSON オプション取込 -->
     <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
       <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">
-        📄 LC JSON 取込 <span style="font-size:11px;font-weight:400;color:var(--text3);">— ICC条件・国別設定を自動判別します（省略可）</span>
+        📄 LC JSON 取込 <span style="font-size:11px;font-weight:400;color:var(--text3);">— ICC条件を自動判別します（省略可）</span>
       </div>
       <div class="drop-zone" id="lcDropZone"
         onclick="document.getElementById('lcFileInput').click()"
@@ -254,7 +254,6 @@ input,select,textarea{font-family:inherit;}
         <div style="font-size:13px;font-weight:700;">📄 <span id="resInvoice"></span></div>
         <div style="font-size:12px;color:var(--text2);">契約: <span id="resContract"></span></div>
         <div style="font-size:12px;color:var(--text2);">LC: <span id="resLcNo" style="color:var(--accent);"></span></div>
-        <div style="font-size:11px;color:var(--text3);" id="resCountryBadge"></div>
         <button class="btn btn-secondary" onclick="resetSearch()" style="margin-left:auto;font-size:11px;">🔄 再検索</button>
       </div>
     </div>
@@ -273,7 +272,7 @@ input,select,textarea{font-family:inherit;}
             <option value="A">ICC (A) — All Risk</option>
             <option value="C">ICC (C) — Limited</option>
           </select>
-          <span id="iccBadge" class="icc-badge icc-badge-a">ICC(A)</span>
+          <span id="iccBadge" class="icc-badge icc-badge-a">LC判別: ICC(A)</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;border-left:1px solid var(--border);padding-left:12px;">
           <span style="font-size:11px;color:var(--text2);font-weight:600;">Local Vessel</span>
@@ -299,7 +298,6 @@ input,select,textarea{font-family:inherit;}
         <select class="icc-select" id="thenceToSelect" onchange="refreshScreen2()">
           <option value="">— (空欄)</option>
           <option value="INTERIOR PLACE BY ANY CONVEYANCE">INTERIOR PLACE BY ANY CONVEYANCE</option>
-          <option value="__POD__">PODと同一 (Thailand 向け)</option>
         </select>
       </div>
       <div class="result-grid" id="screen2Grid"></div>
@@ -326,7 +324,7 @@ input,select,textarea{font-family:inherit;}
     <div class="result-card">
       <div class="result-card-title">📋 画面③ — 保険金額欄 入力内容</div>
       <div class="result-grid">
-        <div class="rg-label">保険金額通貨記号</div><div class="rg-val" id="currencyLabel">US$ (米ドル)</div>
+        <div class="rg-label">保険金額通貨記号</div><div class="rg-val">US$ (米ドル)</div>
         <div class="rg-label">Cargo 保険金額指定</div><div class="rg-val">CIF の <strong>10.00</strong> (10%Up = 110%)</div>
         <div class="rg-label">ICIF の</div><div class="rg-val">0.00</div>
         <div class="rg-label">Invoice Value 選択</div><div class="rg-val">☑ CIF (C&I, DDU, DDP, CIP, DAP, DAT)</div>
@@ -354,111 +352,41 @@ const DV_API       = `${DV_URL}/api/data/v9.2`;
 const REDIRECT_URI = 'https://mhlee205.github.io/SI_COMPASS/';
 const SCOPE        = `${DV_URL}/user_impersonation openid profile email offline_access`;
 
+// 保険固定値
 const OPEN_POLICY_NO = 'NOP-117206';
 const ASSURED        = 'LEENEAR CORPORATION';
-const INS_RATIO      = 110;
+const INS_RATIO      = 110; // デフォルト (LC JSONがある場合はinsuranceRatioを使用)
 
-/* ── 国別 Agent マスター ── */
+// 国別 Agent マスター (今はインドネシアのみ。他国は随時追加)
 const AGENTS_MASTER = {
   'INDONESIA': {
     name:    'P.T. ASURANSI MSIG INDONESIA',
     address: 'SUMMITMAS 11, 15TH FLOOR, JALAN JEND. SUDIRMAN, KAV. 61-62, JAKARTA 12190, INDONESIA',
     tel:     '(62) 21-252-3110',
     fax:     '(62)21-252-4084',
-    email:   '',
   },
-  'VIETNAM': {
-    // ※ベトナムはLC JSONのinsuranceConditionに通常Agent情報が含まれるため、
-    //   こちらはLC JSON未取込時のfallback (HCM Hallmark Building)
-    name:    'MSIG INSURANCE (VIETNAM) COMPANY LIMITED',
-    address: '15TH FLOOR, THE HALLMARK BUILDING, NO. 15 TRAN BACH DANG STREET, AN KHANH WARD, HO CHI MINH',
-    tel:     '(84)28-3821-9030',
-    fax:     '',
-    email:   'CCD@VN.MSIG-ASIA.COM',
-  },
-  'THAILAND': {
-    name:    'MSIG SERVICE & ADJUSTING (THAILAND) CO., LTD.',
-    address: '175 SATHORN CITY TOWER 12TH FLOOR, SOUTH SATHORN ROAD, THUNGMAHAMEK, SATHORN, BANGKOK 10120, THAILAND',
-    tel:     '(66) 2-679-6165',
-    fax:     '(66) 2-679-6212',
-    email:   'MSAT-MARINE@MS-INS.CO.TH',
-  },
+  // 'VIETNAM': { ... },  // 追加予定
 };
 
-/* ── ICC Conditions マスター ──
-   ICC(A): 제외조건 있음 / ICC(C): 제외조건 없음 (샘플 확인) */
+/* ══════════════════════════════════════════
+   SECTION: ICC CONDITIONS MASTER
+══════════════════════════════════════════ */
 const ICC_CONDITIONS = {
   A: `INSTITUTE CARGO CLAUSES (A)
 EXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /
 THEFT, PILFERAGE & NON-DELIVERY /
 BREAKAGE, BENDING, DENTING & SCRATCHING.`,
-  C: `INSTITUTE CARGO CLAUSES (C)`,
+  C: `INSTITUTE CARGO CLAUSES (C)
+EXCLUDING THE RISKS FROM RAIN &/OR FRESH WATER DAMAGE /
+THEFT, PILFERAGE & NON-DELIVERY /
+BREAKAGE, BENDING, DENTING & SCRATCHING.`,
 };
 
-let lcJsonData       = null;
-let currentResultData = null;
-let currentCountry   = '';
-let currentCurrency  = 'USD';
-const _copyMap       = {};
+let lcJsonData = null;        // LC JSON 取込データ
+let currentResultData = null; // 現在の検索結果 (Goods再描画用)
+const _copyMap = {};           // renderGrid コピー値格納 (特殊文字対策)
 
-/* ══════════════════════════════════════════
-   SECTION: COUNTRY DETECTION & DEFAULTS
-══════════════════════════════════════════ */
-function detectCountryFromPod(pod) {
-  const p = (pod || '').toUpperCase();
-  if (/KOREA|PUSAN|BUSAN|KWANGYANG|INCHEON/.test(p))         return 'KOREA';
-  if (/VIETNAM|CAT LAI|HAIPHONG|HOCHIMINH|HO CHI MINH/.test(p)) return 'VIETNAM';
-  if (/INDONESIA|JAKARTA|SURABAYA/.test(p))                  return 'INDONESIA';
-  if (/THAILAND|BANGKOK|KRABANG/.test(p))                    return 'THAILAND';
-  return '';
-}
-
-function applyCountryDefaults(country) {
-  if (!country) return;
-  const c = country.toUpperCase();
-  const iccSel        = document.getElementById('iccSelect');
-  const localVesselSel = document.getElementById('localVesselSelect');
-  const thenceSel      = document.getElementById('thenceToSelect');
-  if (!iccSel || !localVesselSel) return;
-
-  // ICC: LC JSON未取込時のみ国別デフォルトを適用
-  if (!lcJsonData) {
-    iccSel.value = (c === 'KOREA' || c === 'THAILAND') ? 'C' : 'A';
-  }
-
-  const iccType = iccSel.value;
-
-  // Local Vessel: 国とICCタイプで決定
-  if (c === 'KOREA') {
-    // Korea ICC(A) (例外ケース: JUSHIN, ASIA PAERR) → LAND CONVEYANCE
-    localVesselSel.value = (iccType === 'A') ? 'LAND CONVEYANCE' : 'ANY CONVEYANCE';
-  } else if (c === 'VIETNAM' || c === 'INDONESIA') {
-    localVesselSel.value = 'LAND CONVEYANCE';
-  } else if (c === 'THAILAND') {
-    localVesselSel.value = 'ANY CONVEYANCE';
-  }
-
-  // Thence to: Thailand → POD値 (= __POD__), 他 → 固定文
-  if (thenceSel) {
-    thenceSel.value = (c === 'THAILAND') ? '__POD__' : 'INTERIOR PLACE BY ANY CONVEYANCE';
-  }
-}
-
-function getInsuranceRatio() {
-  return parseFloat(lcJsonData?.insuranceRatio) || INS_RATIO;
-}
-
-function fmtCurrency(val) {
-  const isJPY = currentCurrency === 'JPY' || currentCurrency === '¥';
-  if (isJPY) {
-    return `¥${Math.round(val).toLocaleString('ja-JP')}`;
-  }
-  return `USD ${Number(val).toLocaleString('en-US', {minimumFractionDigits:2})}`;
-}
-
-/* ══════════════════════════════════════════
-   SECTION: LC JSON
-══════════════════════════════════════════ */
+/* ── LC JSON 取込 ── */
 function handleLcDrop(e){
   e.preventDefault();
   document.getElementById('lcDropZone').classList.remove('drag-over');
@@ -474,6 +402,7 @@ function handleLcFile(file){
   reader.onload = e => {
     try{
       const raw = JSON.parse(e.target.result);
+      // 配列でも単体でもOK
       lcJsonData = Array.isArray(raw) ? raw[0] : raw;
       detectIcc(lcJsonData);
     }catch(err){
@@ -485,39 +414,33 @@ function handleLcFile(file){
 
 function detectIcc(lcData){
   const insCondRaw = (lcData.insuranceCondition || lcData.insurance_condition || '').toUpperCase();
-  let detected = 'A';
-  if(/ICC\s*[\(\[]?\s*C\s*[\)\]]?/.test(insCondRaw))      detected = 'C';
-  else if(/ICC\s*[\(\[]?\s*A\s*[\)\]]?/.test(insCondRaw)) detected = 'A';
+  let detected = 'A'; // デフォルト ICC(A)
+  if(/ICC\s*[\(\[]?\s*C\s*[\)\]]?/.test(insCondRaw)){
+    detected = 'C';
+  } else if(/ICC\s*[\(\[]?\s*A\s*[\)\]]?/.test(insCondRaw)){
+    detected = 'A';
+  }
 
   lcJsonData._iccDetected = detected;
-
   const sel = document.getElementById('iccSelect');
   if(sel) sel.value = detected;
 
-  // 국가/통화 설정
-  const lcCountry = (lcData.country || '').toUpperCase();
-  if (lcCountry) currentCountry = lcCountry;
-  currentCurrency = lcData.currency || currentCurrency || 'USD';
-
   const badge = document.getElementById('iccBadge');
   if(badge){
-    const countryLabel = currentCountry ? ` [${currentCountry}]` : '';
-    badge.textContent  = `LC判別: ICC(${detected})${countryLabel}`;
-    badge.className    = `icc-badge ${detected==='A'?'icc-badge-a':'icc-badge-c'}`;
+    badge.textContent = `LC判別: ICC(${detected})`;
+    badge.className = `icc-badge ${detected==='A'?'icc-badge-a':'icc-badge-c'}`;
   }
 
+  // ドロップゾーン表示更新
   const zone = document.getElementById('lcDropZone');
   if(zone){
     zone.classList.add('loaded');
     zone.textContent = `✅ ${lcJsonData.contractNo||lcJsonData.id||'LC'} 取込済 — ICC(${detected}) を推奨`;
   }
-  showLcMsg(`✅ ICC(${detected})${currentCountry?' ['+currentCountry+']':''} を判別。変更は上のセレクターから。`, 'ok');
+  showLcMsg(`✅ ICC(${detected}) と判別しました。変更は上のセレクターから。`, 'ok');
 
-  // 국가별 기본값 적용 (ICC설정은 이미 위에서 완료)
-  applyCountryDefaults(currentCountry);
-
-  // 결과가 표시되어 있으면 갱신
-  if(currentResultData) onIccChange();
+  // 結果が既に表示されていれば Conditions を更新
+  onIccChange();
 }
 
 function showLcMsg(msg, type){
@@ -527,18 +450,12 @@ function showLcMsg(msg, type){
   el.innerHTML = `<span style="${cls}">${escapeHtml(msg)}</span>`;
 }
 
-/* ══════════════════════════════════════════
-   SECTION: SCREEN REFRESH
-══════════════════════════════════════════ */
-function resolveThenceTo() {
-  const raw = document.getElementById('thenceToSelect')?.value || '';
-  if (raw === '__POD__') return currentResultData?.pod || '';
-  return raw;
-}
-
 function refreshScreen2(){
   if(!currentResultData) return;
-  const thenceTo = resolveThenceTo();
+  const thenceTo = document.getElementById('thenceToSelect')?.value || '';
+  // 현재 s2Items를 _copyMap 보존하며 재렌더링
+  // ship/etd/pol/pod는 currentResultData에 없으므로 DOM에서 읽어온 값 유지
+  // → s2Grid는 이미 렌더된 상태이므로 Thence to 행만 찾아서 업데이트
   const rows = document.querySelectorAll('#screen2Grid .rg-label-fixed');
   rows.forEach(label => {
     if(label.textContent.trim() === 'Thence to'){
@@ -549,41 +466,35 @@ function refreshScreen2(){
 
 function onIccChange(){
   const iccType = document.getElementById('iccSelect')?.value || 'A';
-
-  // Local Vessel: 국가에 따라 ICC변경 시 자동 연동
-  if (currentCountry === 'KOREA') {
-    const lv = document.getElementById('localVesselSelect');
-    if (lv) lv.value = (iccType === 'A') ? 'LAND CONVEYANCE' : 'ANY CONVEYANCE';
-  }
-
+  // badge更新
   const badge = document.getElementById('iccBadge');
   if(badge && lcJsonData?._iccDetected){
     const detected = lcJsonData._iccDetected;
-    const countryLabel = currentCountry ? ` [${currentCountry}]` : '';
     const changed = iccType !== detected;
     badge.textContent = changed
-      ? `LC判別: ICC(${detected}) → 手動: ICC(${iccType})${countryLabel}`
-      : `LC判別: ICC(${iccType})${countryLabel}`;
+      ? `LC判別: ICC(${detected}) → 手動: ICC(${iccType})`
+      : `LC判別: ICC(${iccType})`;
     badge.className = `icc-badge ${iccType==='A'?'icc-badge-a':'icc-badge-c'}`;
   }
-
+  // 画面① Conditions 再レンダリング
   refreshScreen1();
+  // 画面③ Goods テキスト 再描画
   renderGoods(currentResultData, iccType);
 }
 
 function refreshScreen1(){
   const ivNo = document.getElementById('resInvoice')?.textContent || '';
   if(!ivNo) return;
-  const iccType     = document.getElementById('iccSelect')?.value       || 'A';
+  const iccType    = document.getElementById('iccSelect')?.value       || 'A';
   const localVessel = document.getElementById('localVesselSelect')?.value || 'LAND CONVEYANCE';
   const s1Items = [
-    ['保険種目',                     '輸出',                  false],
-    ['Open Policy No.',              OPEN_POLICY_NO,          false],
-    ['Assured(s)',                   ASSURED,                 false],
-    ['Invoice No.',                  ivNo,                    true],
-    ['Claim, if any, payable at/in', 'DESTINATION',           false],
-    ['Conditions',                   ICC_CONDITIONS[iccType], false],
-    ['Local Vessel or Conveyance',   localVessel,             false],
+    ['保険種目',                     '輸出',                   false],
+    ['Open Policy No.',              OPEN_POLICY_NO,           false],
+    ['Assured(s)',                   ASSURED,                  false],
+    ['Invoice No.',                  ivNo,                     true],
+    ['Claim, if any, payable at/in', 'DESTINATION',            false],
+    ['Conditions',                   ICC_CONDITIONS[iccType],  false],
+    ['Local Vessel or Conveyance',   localVessel,              false],
   ];
   renderGrid('screen1Grid', s1Items);
   document.getElementById('screen1Text').textContent = ivNo;
@@ -612,9 +523,9 @@ function randomStr(n=64){
 }
 
 async function startLogin(){
-  const verifier  = randomStr(64);
+  const verifier = randomStr(64);
   const challenge = b64url(await sha256(verifier));
-  const state     = randomStr(16);
+  const state = randomStr(16);
   sessionStorage.setItem('pkce_v', verifier);
   sessionStorage.setItem('pkce_s', state);
   const p = new URLSearchParams({
@@ -627,7 +538,7 @@ async function startLogin(){
 }
 
 async function handleCallback(){
-  const p    = new URLSearchParams(location.search);
+  const p = new URLSearchParams(location.search);
   const code = p.get('code');
   if(!code) return;
   history.replaceState({}, '', location.pathname);
@@ -675,14 +586,14 @@ async function checkToken(){
   );
   const data = await res.json();
   if(!data.access_token) return false;
-  S.accessToken = data.access_token;
-  S.tokenExpiry = Date.now()+(data.expires_in-60)*1000;
+  S.accessToken  = data.access_token;
+  S.tokenExpiry  = Date.now()+(data.expires_in-60)*1000;
   if(data.refresh_token) S.refreshToken = data.refresh_token;
   return true;
 }
 
 function handleAuthClick(){
-  if(S.accessToken) return;
+  if(S.accessToken) return; // すでにログイン済み
   startLogin();
 }
 
@@ -724,6 +635,7 @@ async function fetchData(){
 
   showLoading('データ取得中 (1/5) — Booking 検索...');
   try{
+    // ① Booking 取得
     const bkgRes = await dvGet(
       `cr49f_bookings?$filter=${encodeURIComponent(`cr49f_invoice_no eq '${ivNo}'`)}` +
       `&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,cr49f_etd,crcf9_bl_etd,` +
@@ -734,20 +646,22 @@ async function fetchData(){
       showMsg('searchMsg',`Invoice No. "${ivNo}" の Booking が見つかりませんでした。`,'err');
       return;
     }
-    const bkg     = bkgRes.value[0];
+    const bkg = bkgRes.value[0];
     const bkgGuid = bkg.cr49f_bookingid;
     const scGuid  = bkg._cr49f_sale_contract_id_value;
     const rjGuid  = bkg._cr49f_region_japan_id_value;
 
+    // ② POL 取得 (region_japan)
     let pol = 'ANY PORT IN JAPAN';
     if(rjGuid){
       updateLoading('データ取得中 (2/5) — POL 取得...');
       try{
         const rj = await dvGet(`crcf9_region_japans(${rjGuid})?$select=crcf9_pol`);
         if(rj.crcf9_pol) pol = rj.crcf9_pol.trim() + ', JAPAN';
-      }catch(e){}
+      }catch(e){ /* POL取得失敗時はデフォルト値を使用 */ }
     }
 
+    // ③ 販売契約 取得
     updateLoading('データ取得中 (3/5) — 販売契約 取得...');
     let scNo = '', tradeTerms = 'CIF';
     if(scGuid){
@@ -760,6 +674,7 @@ async function fetchData(){
       }catch(e){}
     }
 
+    // ④ S/I ヘッダー 取得 (sino=1)
     updateLoading('データ取得中 (4/5) — S/I データ取得...');
     let siData = null, siGuid = '';
     if(scGuid){
@@ -775,7 +690,21 @@ async function fetchData(){
       }
     }
 
-    updateLoading('データ取得中 (5/5) — コンテナ・明細 取得...');
+    // ⑤ 販売明細 (sale_details) 取得 — 単価の正確な参照元
+    updateLoading('データ取得中 (5/6) — 販売明細・単価 取得...');
+    let saleDetails = [];
+    if(scGuid){
+      try{
+        const sdRes = await dvGet(
+          `cr49f_sale_details?$filter=${encodeURIComponent(`_cr49f_sale_contract_id_value eq ${scGuid}`)}` +
+          `&$select=cr49f_sale_detailid,cr49f_item_id,cr49f_price,cr49f_quantity`
+        );
+        saleDetails = sdRes.value||[];
+      }catch(e){ /* 取得失敗時は s_i_detail の price を使用 */ }
+    }
+
+    // ⑥ S/I Detail + Container 取得
+    updateLoading('データ取得中 (6/6) — コンテナ・明細 取得...');
     let siDetails = [], containers = [];
     if(siGuid){
       const detRes = await dvGet(
@@ -793,7 +722,11 @@ async function fetchData(){
     containers = ctRes.value||[];
 
     hideLoading();
-    renderResult({ ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, containers });
+
+    // ⑦ 画面描画
+    renderResult({
+      ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, saleDetails, containers
+    });
 
   }catch(e){
     hideLoading();
@@ -804,70 +737,53 @@ async function fetchData(){
 /* ══════════════════════════════════════════
    SECTION: RENDER
 ══════════════════════════════════════════ */
-function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, containers}){
-  const etd   = bkg.crcf9_bl_etd || bkg.cr49f_etd || '';
-  const ship  = bkg.cr49f_main_ship_name || '';
-  const lcNo  = siData?.cr49f_lc_no || '';
-  const pod   = siData?.crcf9_pod_bl1 || siData?.crcf9_place_of_delivery_1 || '';
+function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, saleDetails, containers}){
+  const etd = bkg.crcf9_bl_etd || bkg.cr49f_etd || '';
+  const ship = bkg.cr49f_main_ship_name || '';
+  const lcNo = siData?.cr49f_lc_no || '';
+  const pod  = siData?.crcf9_pod_bl1 || siData?.crcf9_place_of_delivery_1 || '';
   const voNoRaw = siData?.crcf9_vo_no || '';
-  const voNo  = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
-  const poVo  = siData?.crcf9_po_vo || '';
+  const voNo = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
+  const poVo = siData?.crcf9_po_vo || '';
 
+  // ETD整形
   const etdFormatted = formatDateForInsurance(etd);
 
-  // 국가 감지: LC JSON의 country 우선, 없으면 POD에서 감지
-  if (!currentCountry) {
-    currentCountry = lcJsonData?.country?.toUpperCase() || detectCountryFromPod(pod);
-  }
-  currentCurrency = lcJsonData?.currency || currentCurrency || 'USD';
-
-  // 국가별 기본값 적용 (dropdown 갱신)
-  applyCountryDefaults(currentCountry);
-
-  // 개요 바
-  document.getElementById('resInvoice').textContent  = ivNo;
+  // 概要バー
+  document.getElementById('resInvoice').textContent = ivNo;
   document.getElementById('resContract').textContent = scNo;
-  document.getElementById('resLcNo').textContent     = lcNo;
-  const cBadge = document.getElementById('resCountryBadge');
-  if(cBadge && currentCountry) cBadge.textContent = `🌐 ${currentCountry}`;
+  document.getElementById('resLcNo').textContent = lcNo;
 
-  // 통화 라벨 갱신
-  const isJPY = currentCurrency === 'JPY' || currentCurrency === '¥';
-  const clabel = document.getElementById('currencyLabel');
-  if(clabel) clabel.textContent = isJPY ? '¥ (円)' : 'US$ (米ドル)';
-
-  // 현재 dropdown 값 읽기 (applyCountryDefaults 후)
-  const iccType     = document.getElementById('iccSelect')?.value || 'A';
-  const localVessel = document.getElementById('localVesselSelect')?.value || 'LAND CONVEYANCE';
-  const thenceRaw   = document.getElementById('thenceToSelect')?.value || '';
-  const thenceTo    = thenceRaw === '__POD__' ? pod : thenceRaw;
-
-  // 画面①
+  // ── 画面① ──
+  const iccType = document.getElementById('iccSelect')?.value || 'A';
   const s1Items = [
-    ['保険種目',                     '輸出',                  false],
-    ['Open Policy No.',              OPEN_POLICY_NO,          false],
-    ['Assured(s)',                   ASSURED,                 false],
-    ['Invoice No.',                  ivNo,                    true],
-    ['Claim, if any, payable at/in', 'DESTINATION',           false],
-    ['Conditions',                   ICC_CONDITIONS[iccType], false],
-    ['Local Vessel or Conveyance',   localVessel,             false],
+    ['保険種目',                     '輸出',                   false],
+    ['Open Policy No.',              OPEN_POLICY_NO,           false],
+    ['Assured(s)',                   ASSURED,                  false],
+    ['Invoice No.',                  ivNo,                     true],
+    ['Claim, if any, payable at/in', 'DESTINATION',            false],
+    ['Conditions',                   ICC_CONDITIONS[iccType],  false],
+    ['Local Vessel or Conveyance',   document.getElementById('localVesselSelect')?.value || 'LAND CONVEYANCE', false],
   ];
   renderGrid('screen1Grid', s1Items);
+  // screen1Text は Invoice No. のみ (コピー用)
   document.getElementById('screen1Text').textContent = ivNo;
 
-  // 画面②
+  // ── 画面② ──
+  const thenceTo = document.getElementById('thenceToSelect')?.value || '';
   const s2Items = [
     ['From (interior port)', 'INTERIOR PLACE IN JAPAN', false],
-    ['Ship or Vessel',       ship,                       true],
-    ['Sailing on or about',  etdFormatted,               true],
-    ['Voyage at and from',   pol,                        true],
-    ['Voyage to/via',        pod,                        true],
-    ['Thence to',            thenceTo,                   false],
+    ['Ship or Vessel',       ship,                      true],
+    ['Sailing on or about',  etdFormatted,              true],
+    ['Voyage at and from',   pol,                       true],
+    ['Voyage to/via',        pod,                       true],
+    ['Thence to',            thenceTo,                  false],
   ];
   renderGrid('screen2Grid', s2Items);
   document.getElementById('screen2Text').textContent = '';
 
-  // 画面③ Goods — コンテナグルーピング
+  // ── 画面③ Goods テキスト — データ整理 ──
+  // sale_detail_id → container グルーピング
   const ctByDetail = {};
   containers.forEach(ct=>{
     const key = ct._crcf9_sale_detail_id_value || 'unknown';
@@ -877,15 +793,25 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
   });
 
   const items = [];
+  // saleDetails を Map化 (sale_detailid → price) — 高速検索用
+  const salePriceMap = {};
+  (saleDetails||[]).forEach(sd=>{
+    salePriceMap[sd.cr49f_sale_detailid] = sd.cr49f_price||0;
+  });
+
   if(siDetails.length>0){
     siDetails.forEach(det=>{
       const sdId = det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '';
-      const ct   = ctByDetail[sdId] || {bales:0, nwKg:0};
+      const ct = ctByDetail[sdId] || {bales:0, nwKg:0};
       const useCt = ct.nwKg>0 ? ct : sumAllCt(ctByDetail);
+      // cr49f_sale_details の price 優先 (Shipping_Document 同一ロジック)
+      const price = (sdId && salePriceMap[sdId] != null && salePriceMap[sdId] !== 0)
+        ? salePriceMap[sdId]
+        : (det.crcf9_price||0);
       items.push({
         productname: det.crcf9_productname||'',
         hsCode:      det.crcf9_hs_code||'',
-        price:       det.crcf9_price||'',
+        price,
         bales:       useCt.bales,
         nwMt:        useCt.nwKg/1000,
         sdId,
@@ -893,74 +819,85 @@ function renderResult({ivNo, bkg, pol, scNo, tradeTerms, siData, siDetails, cont
     });
   } else {
     const total = sumAllCt(ctByDetail);
-    items.push({ productname:'', hsCode:'', price:'',
+    items.push({ productname:'', hsCode:'', price:0,
       bales:total.bales, nwMt:total.nwKg/1000, sdId:'all' });
   }
 
-  currentResultData = { lcNo, voNo, poVo, items, pod };
+  // 現在データを保存 → ICC変更時に再描画
+  currentResultData = { lcNo, voNo, poVo, items };
 
-  renderGoods(currentResultData, iccType);
+  // Goods 描画
+  renderGoods(currentResultData, document.getElementById('iccSelect')?.value || 'A');
 
-  // CIF自動計算
+  // Invoice Value 自動計算 — Shipping_Document と同一ロジック
+  // cifAmount = Math.round(weightMt × price × 100) / 100 (アイテム別丸め)
   const cifAuto = items.reduce((sum, item)=>{
     const price = parseFloat(item.price) || 0;
-    return sum + price * (item.nwMt || 0);
+    const nwMt  = item.nwMt || 0;
+    return sum + Math.round(nwMt * price * 100) / 100;
   }, 0);
   if(cifAuto > 0){
-    const dp = isJPY ? 0 : 2;
-    document.getElementById('cifInput').value = cifAuto.toFixed(dp);
+    document.getElementById('cifInput').value = cifAuto.toFixed(2);
     document.getElementById('insCalcNote').textContent = '自動計算済 (手動修正可)';
     updateInsuranceCalc();
   }
 
+  // 結果表示
   document.getElementById('stepResult').style.display = 'block';
   document.getElementById('stepResult').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 /* ══════════════════════════════════════════
-   SECTION: GOODS RENDER
+   SECTION: GOODS RENDER (분리된 함수 — ICC変更で再描画)
 ══════════════════════════════════════════ */
 
-/*
- * 保険条件テキスト生成ルール:
- *  Korea ICC(C) → '' (条件なし。意図的に空)
- *  LC JSON未取込 (Korea ICC(C)以外) → null (警告表示)
- *  LC JSON取込済 → insuranceCondition全文を使用 + ICC置換 + Agent追記
- */
+// 保険条件テキスト生成
+// LC JSONがある場合 → insuranceCondition原文から抽出 + ICC置換 + Agentマスター追加
+// LC JSONがない場合 → null を返す (renderGoods側で警告表示)
 function buildInsuranceClause(iccType){
-  const c = (currentCountry || '').toUpperCase();
-  const isKoreaC = (c === 'KOREA') && iccType === 'C';
-  if (isKoreaC) return '';   // Korea ICC(C): 保険条件不要 (意図的)
-
-  if (!lcJsonData?.insuranceCondition) return null; // LC JSON未取込
-
-  let clause = lcJsonData.insuranceCondition.trim();
-
-  // ICC表記を選択値で統一 (短縮形・長形式どちらも対応)
-  clause = clause.replace(/INSTITUTE CARGO CLAUSES\s*[\(\[]?\s*[ABCabc]\s*[\)\]]?/g,
-                           `INSTITUTE CARGO CLAUSES (${iccType})`);
-  clause = clause.replace(/ICC\s*[\(\[]?\s*[ABCabc]\s*[\)\]]?/g,
-                           `ICC (${iccType})`);
-
-  // Agent情報が既にclauseに含まれているか確認
-  const agent = AGENTS_MASTER[c];
-  if (agent) {
-    const agentKey = agent.name.split(' ').slice(0,2).join(' ').toUpperCase();
-    if (!clause.toUpperCase().includes(agentKey)) {
-      // Agent情報をclauseに追記 (fallback)
-      const agentLines = [agent.name, agent.address, `TEL: ${agent.tel}`];
-      if (agent.fax)   agentLines.push(`FAX: ${agent.fax}`);
-      if (agent.email) agentLines.push(`E-MAIL: ${agent.email}`);
-      clause += '\n' + agentLines.join('\n');
-    }
-  } else if (c && c !== 'KOREA') {
-    // 未登録国: 手動入力を促す
-    if (!clause.toUpperCase().includes('AGENT')) {
-      clause += `\n(${c} 向け Agent 情報: 要手動入力)`;
-    }
+  if(!lcJsonData?.insuranceCondition){
+    return null; // LC JSON 未取込 → 呼び出し側で警告表示
   }
 
-  return clause;
+  const raw = lcJsonData.insuranceCondition || '';
+
+  // "FOR N PERCENT..." の開始位置を探す
+  const forIdx = raw.toUpperCase().indexOf('FOR ');
+  if(forIdx < 0) return null;
+
+  // "CLAIM PAYABLE IN ... THE LC" の終端を探す
+  const upperRaw = raw.toUpperCase();
+  const claimIdx = upperRaw.indexOf('CLAIM PAYABLE IN', forIdx);
+  const theLcIdx = claimIdx >= 0 ? upperRaw.indexOf('THE LC', claimIdx) : -1;
+
+  let mainClause = '';
+  if(theLcIdx >= 0){
+    mainClause = raw.substring(forIdx, theLcIdx + 'THE LC'.length);
+    // 末尾にカンマ付与 (なければ)
+    if(!mainClause.trimEnd().endsWith(',')) mainClause = mainClause.trimEnd() + ',';
+  } else {
+    // 見つからない場合はFOR以降を全部使う
+    mainClause = raw.substring(forIdx).trim();
+  }
+
+  // ICC条件をドロップダウン選択値に置換
+  mainClause = mainClause.replace(/ICC\s*[\(\[]?\s*[ACac]\s*[\)\]]?/g, `ICC ${iccType}`);
+
+  // 国名を取得してAgentマスターを検索
+  const country = (lcJsonData.country || '').toUpperCase();
+  const agent = AGENTS_MASTER[country];
+
+  const lines = [mainClause];
+  if(agent){
+    lines.push(`NAME OF AGENT: ${agent.name}`);
+    lines.push(`ADDRESS: ${agent.address}`);
+    lines.push(`TEL: ${agent.tel}`);
+    lines.push(`FAX: ${agent.fax}`);
+  } else if(country){
+    lines.push(`(${country} 向け Agent 情報: 要手動入力)`);
+  }
+
+  return lines.join('\n');
 }
 
 function renderGoods(data, iccType){
@@ -971,17 +908,9 @@ function renderGoods(data, iccType){
   goodsContainer.innerHTML = '';
 
   const insClause = buildInsuranceClause(iccType);
-  // insClause === ''  → Korea ICC(C): 保険条件なし (正常。警告不要)
-  // insClause === null → LC JSON未取込かつ保険条件が必要な国 (警告表示)
-  const insWarning = (insClause === null)
+  const insWarning = insClause === null
     ? '(⚠️ 保険条件: LC JSON を取込後に自動生成されます)'
     : null;
-
-  // LC JSONのinsuranceConditionに既にL/C NO等が含まれる場合の重複防止
-  const clauseRaw = (lcJsonData?.insuranceCondition || '').toUpperCase();
-  const lcInClause = lcNo && clauseRaw.includes(lcNo.toUpperCase());
-  const poInClause = poVo && clauseRaw.includes(poVo.toUpperCase());
-  const voInClause = voNo && clauseRaw.includes(voNo.toUpperCase());
 
   items.forEach((item, idx)=>{
     const balesStr = item.bales>0 ? item.bales : 'XX';
@@ -991,13 +920,14 @@ function renderGoods(data, iccType){
     const prodName = hasExJapan ? prodRaw : prodRaw + ' EX JAPAN';
     const hsLine   = item.hsCode || '';
 
+    // 値がある行だけ組み立て (L/C NO. / VO NUMBER は値がない場合スキップ)
     const lines = [];
     lines.push(`${prodName}, ${balesStr}BALES, ${mtStr}MT`);
-    if(lcNo  && !lcInClause) lines.push(`L/C NO. ${lcNo}`);
-    if(poVo  && !poInClause) lines.push(`PURCHASE ORDER ${poVo}`);
-    if(voNo  && !voInClause) lines.push(`VO NUMBER ${voNo}`);
+    if(lcNo)  lines.push(`L/C NO. ${lcNo}`);
+    if(poVo)  lines.push(`PURCHASE ORDER ${poVo}`);
+    if(voNo)  lines.push(`VO NUMBER ${voNo}`);
     if(hsLine) lines.push(hsLine);
-    if(insClause) lines.push(insClause);  // '' の場合は追加されない
+    if(insClause) lines.push(insClause);
 
     const goodsText = lines.join('\n');
 
@@ -1029,12 +959,13 @@ function sumAllCt(ctByDetail){
 }
 
 function renderGrid(containerId, items){
+  // items: [label, value] or [label, value, copyable]
   const el = document.getElementById(containerId);
   let h = '';
   items.forEach(([label, val, copyable], i)=>{
     const uid = `rg_${containerId}_${i}`;
     if(copyable && val && val !== '—'){
-      _copyMap[uid] = val;
+      _copyMap[uid] = val; // 特殊文字に安全な格納
       h += `
         <div class="rg-label-copy">${escapeHtml(label)} <span class="copy-tag">📋 要入力</span></div>
         <div class="rg-val-copyable">
@@ -1059,9 +990,9 @@ function copyMapVal(uid){
 function formatDateForInsurance(dateStr){
   if(!dateStr) return '';
   try{
-    const d   = new Date(dateStr);
-    const y   = d.getUTCFullYear();
-    const m   = String(d.getUTCMonth()+1).padStart(2,'0');
+    const d = new Date(dateStr);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth()+1).padStart(2,'0');
     const day = String(d.getUTCDate()).padStart(2,'0');
     return `${y}年${m}月${day}日`;
   }catch(e){ return dateStr; }
@@ -1071,32 +1002,27 @@ function formatDateForInsurance(dateStr){
    SECTION: CIF計算
 ══════════════════════════════════════════ */
 function updateInsuranceCalc(){
-  const cif        = parseFloat(document.getElementById('cifInput').value);
-  const resEl      = document.getElementById('insCalcResult');
-  const dispEl     = document.getElementById('cifDisplayVal');
+  const cif = parseFloat(document.getElementById('cifInput').value);
+  const resEl = document.getElementById('insCalcResult');
+  const dispEl = document.getElementById('cifDisplayVal');
   const copyBtnCif = document.getElementById('copyBtnCif');
-  const ratio      = getInsuranceRatio();
-
   if(!isNaN(cif) && cif>0){
-    const insAmt = cif * ratio / 100;
-    resEl.style.display  = 'block';
-    resEl.textContent    = `✅ 保険金額 = ${fmtCurrency(cif)} × ${ratio}% = ${fmtCurrency(insAmt)}`;
-    dispEl.textContent   = fmtCurrency(cif);
-    copyBtnCif.style.display = 'inline-flex';
+    const insAmt = (cif*INS_RATIO/100).toFixed(2);
+    resEl.style.display='block';
+    resEl.textContent = `✅ 保険金額 = USD ${Number(cif).toLocaleString('en-US',{minimumFractionDigits:2})} × ${INS_RATIO}% = USD ${Number(insAmt).toLocaleString('en-US',{minimumFractionDigits:2})}`;
+    dispEl.textContent = `USD ${Number(cif).toLocaleString('en-US',{minimumFractionDigits:2})}`;
+    copyBtnCif.style.display='inline-flex';
   } else {
-    resEl.style.display  = 'none';
-    dispEl.textContent   = '— (上記フォームに入力)';
-    copyBtnCif.style.display = 'none';
+    resEl.style.display='none';
+    dispEl.textContent='— (上記フォームに入力)';
+    copyBtnCif.style.display='none';
   }
 }
 
 function copyCifVal(btnId){
   const cif = parseFloat(document.getElementById('cifInput').value);
   if(!isNaN(cif) && cif>0){
-    const isJPY = currentCurrency === 'JPY' || currentCurrency === '¥';
-    const txt = isJPY
-      ? String(Math.round(cif))
-      : Number(cif).toLocaleString('en-US',{minimumFractionDigits:2});
+    const txt = Number(cif).toLocaleString('en-US',{minimumFractionDigits:2});
     copyToClipboard(txt, btnId);
   }
 }
@@ -1125,7 +1051,7 @@ function copyToClipboard(text, btnId){
 /* ══════════════════════════════════════════
    SECTION: UI HELPERS
 ══════════════════════════════════════════ */
-function showLoading(msg){
+function showLoading(msg){ 
   document.getElementById('loadingMsg').textContent=msg;
   document.getElementById('loadingOverlay').classList.add('show');
 }
@@ -1133,14 +1059,14 @@ function updateLoading(msg){ document.getElementById('loadingMsg').textContent=m
 function hideLoading(){ document.getElementById('loadingOverlay').classList.remove('show'); }
 
 function showMsg(elId, msg, type='info'){
-  const el  = document.getElementById(elId);
+  const el = document.getElementById(elId);
   if(!el) return;
   const cls = {info:'alert-info',ok:'alert-ok',err:'alert-err',warn:'alert-warn'}[type]||'alert-info';
   el.innerHTML = `<div class="alert ${cls}">${escapeHtml(msg)}</div>`;
 }
 
-function escapeHtml(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function escapeHtml(s){ 
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); 
 }
 
 function resetSearch(){
@@ -1151,17 +1077,9 @@ function resetSearch(){
   document.getElementById('insCalcResult').style.display='none';
   document.getElementById('cifDisplayVal').textContent='— (上記フォームに入力)';
   document.getElementById('copyBtnCif').style.display='none';
+  // ICC / LC JSON リセット (ドロップゾーンは維持 — 再利用可)
+  document.getElementById('iccSelect').value = lcJsonData?._iccDetected || 'A';
   document.getElementById('insCalcNote').textContent = '金額を入力すると保険金額 (×1.10) を表示します';
-
-  // 국가/통화 리셋 (LC JSON이 있으면 그 값 유지)
-  currentCountry  = lcJsonData?.country?.toUpperCase() || '';
-  currentCurrency = lcJsonData?.currency || 'USD';
-
-  // ICC/dropdown 리셋
-  const iccSel = document.getElementById('iccSelect');
-  if(iccSel) iccSel.value = lcJsonData?._iccDetected || 'A';
-  if(currentCountry) applyCountryDefaults(currentCountry);
-
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1169,7 +1087,7 @@ function resetSearch(){
    SECTION: THEME
 ══════════════════════════════════════════ */
 function toggleTheme(){
-  const cur  = document.documentElement.getAttribute('data-theme')||'dark';
+  const cur = document.documentElement.getAttribute('data-theme')||'dark';
   const next = cur==='dark'?'light':'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('leenai_theme', next);
