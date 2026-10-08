@@ -310,7 +310,7 @@ function startTool(){
 LEENAI.init({
   sys:     'D-04',
   name:    '保険入力支援',
-  version: '2.0',
+  version: '2.1',
   date:    '2026-10-08',
   desc:    'COMPASS と LC JSON から保険申込の入力値を作成します',
   onReady: startTool,
@@ -345,6 +345,19 @@ async function dvGet(path){
 /* ══════════════════════════════════════════
    SECTION: LC JSON 取込
 ══════════════════════════════════════════ */
+/* ── LC JSON 共通適用 (手動ドロップ・自動取得 共用) ── */
+function sanitize(s){ return (s||'').replace(/[\/\\:\*\?"<>\|]/g,'-'); }
+
+function applyLcJson(obj, sourceLabel){
+  var lc = Array.isArray(obj) ? obj[0] : obj;
+  lcJsonData = lc;
+  detectIcc(lc);
+  /* detectIcc が zone テキストを更新するので source ラベルで上書き */
+  var zone = document.getElementById('lcDropZone');
+  if(zone) zone.textContent = '✅ '+sourceLabel;
+  showLcMsg('✅ '+sourceLabel, 'ok');
+}
+
 function handleLcDrop(e){
   e.preventDefault();
   document.getElementById('lcDropZone').classList.remove('drag-over');
@@ -360,13 +373,106 @@ function handleLcFile(file){
   reader.onload = function(e){
     try{
       var raw = JSON.parse(e.target.result);
-      lcJsonData = Array.isArray(raw) ? raw[0] : raw;
-      detectIcc(lcJsonData);
+      applyLcJson(raw, 'ファイル: '+file.name);
     }catch(err){
       showLcMsg('❌ JSONの解析に失敗しました: ' + err.message, 'err');
     }
   };
   reader.readAsText(file);
+}
+
+/* ── SharePoint LC JSON 自動取得 ── */
+async function autoFetchLcJson(contractNo, lcNo){
+  var s = LEENAI.auth.status;
+  if(s.graph !== 'ok' || (s.graphError && s.graphError.startsWith('files:'))){
+    showLcMsg('⚠ SharePoint 未接続 — 手動で取込んでください', 'warn'); return;
+  }
+  if(!contractNo){ return; }
+
+  showLcMsg('⟳ SharePoint から LC JSON を検索中…', 'info');
+
+  var scSan  = sanitize(contractNo);
+  var lcSan  = sanitize(lcNo).replace(/ /g,'_');
+  var lcFirst = lcSan ? lcSan.split('_')[0] : '';
+
+  var candidates = [];
+  if(lcNo){
+    candidates.push(scSan+'_'+lcSan+'.json');
+    if(lcFirst && lcFirst !== lcSan) candidates.push(scSan+'_'+lcFirst+'.json');
+  } else {
+    candidates.push(scSan+'.json');
+  }
+
+  var folders = LEENAI.SP.PATH.LC_JSON;
+
+  /* STEP 1: 正確なファイル名で試す */
+  for(var fi=0; fi<folders.length; fi++){
+    for(var ci=0; ci<candidates.length; ci++){
+      try{
+        var obj = await LEENAI.sp.getJson(folders[fi]+'/'+candidates[ci]);
+        if(obj !== null){
+          applyLcJson(obj, 'SharePoint: '+candidates[ci]+' (フォルダ'+(fi+1)+')');
+          return;
+        }
+      }catch(e){}
+    }
+  }
+
+  /* STEP 2: 目録から契約番号で検索 */
+  var allMatches = [];
+  for(var fi2=0; fi2<folders.length; fi2++){
+    try{
+      var files = await LEENAI.sp.list(folders[fi2]);
+      files.filter(function(f){
+        return f.name.startsWith(scSan+'_') && f.name.endsWith('.json') && !f.name.includes('_TT_BASE');
+      }).forEach(function(f){ allMatches.push({folder:fi2, name:f.name}); });
+    }catch(e){}
+  }
+
+  if(allMatches.length === 0){
+    showLcMsg('⚠ LC JSON が SharePoint に見つかりません — 手動で取込んでください', 'warn'); return;
+  }
+  if(allMatches.length === 1){
+    var m1 = allMatches[0];
+    var obj1 = await LEENAI.sp.getJson(folders[m1.folder]+'/'+m1.name);
+    if(obj1) applyLcJson(obj1, 'SharePoint: '+m1.name+' (フォルダ'+(m1.folder+1)+')');
+    return;
+  }
+
+  /* 複数: LC番号先頭語でさらに絞り込む */
+  if(lcFirst){
+    var filtered = allMatches.filter(function(f){ return f.name.includes(lcFirst); });
+    if(filtered.length === 1){
+      var mf = filtered[0];
+      var objf = await LEENAI.sp.getJson(folders[mf.folder]+'/'+mf.name);
+      if(objf) applyLcJson(objf, 'SharePoint: '+mf.name+' (フォルダ'+(mf.folder+1)+')');
+      return;
+    }
+  }
+
+  /* それでも複数: 選択ボタン表示 */
+  showLcChoice(allMatches, folders);
+}
+
+function showLcChoice(matches, folders){
+  var el = document.getElementById('lcJsonMsg');
+  if(!el) return;
+  var html = '<span style="color:var(--accent)">📋 複数のLC JSONが見つかりました:<br>';
+  matches.forEach(function(m, i){
+    html += '<button class="btn btn-secondary" style="margin:3px 3px 0 0;font-size:11px;"'+
+      ' onclick="pickLcChoice('+i+')">'+escapeHtml(m.name)+'</button>';
+  });
+  html += '</span>';
+  el.innerHTML = html;
+  window._lcChoiceMatches = matches;
+  window._lcChoiceFolders = folders;
+}
+
+async function pickLcChoice(i){
+  var m = window._lcChoiceMatches[i];
+  var folders = window._lcChoiceFolders;
+  var obj = await LEENAI.sp.getJson(folders[m.folder]+'/'+m.name);
+  if(obj) applyLcJson(obj, 'SharePoint: '+m.name);
 }
 
 function detectIcc(lcData){
@@ -538,6 +644,9 @@ async function fetchData(){
     containers = ctRes.value||[];
 
     hideLoading();
+
+    var _autoLcNo = siData && siData.cr49f_lc_no || '';
+    await autoFetchLcJson(scNo, _autoLcNo);
 
     renderResult({
       ivNo:ivNo, bkg:bkg, pol:pol, scNo:scNo, tradeTerms:tradeTerms,
