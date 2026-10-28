@@ -297,6 +297,8 @@ BREAKAGE, BENDING, DENTING & SCRATCHING.`,
 };
 
 let lcJsonData = null;
+let lcJsonSource = null;   // v2.3: 'sp' (SharePoint 自動取得) | 'manual' (手動取込)
+let searchSeq = 0;         // v2.3: 検索ごとに +1 — 遅れて終わった前の検索は画面を触らない
 let currentResultData = null;
 const _copyMap = {};
 
@@ -313,7 +315,7 @@ function startTool(){
 LEENAI.init({
   sys:     'D-04',
   name:    '保険入力支援',
-  version: '2.2',
+  version: '2.3',
   date:    '2026-10-28',
   desc:    'COMPASS と LC JSON から保険申込の入力値を作成します',
   onReady: startTool,
@@ -351,9 +353,10 @@ async function dvGet(path){
 /* ── LC JSON 共通適用 (手動ドロップ・自動取得 共用) ── */
 function sanitize(s){ return (s||'').replace(/[\/\\:\*\?"<>\|]/g,'-'); }
 
-function applyLcJson(obj, sourceLabel){
+function applyLcJson(obj, sourceLabel, source){
   var lc = Array.isArray(obj) ? obj[0] : obj;
   lcJsonData = lc;
+  lcJsonSource = source;
   detectIcc(lc);
   /* detectIcc が zone テキストを更新するので source ラベルで上書き */
   var zone = document.getElementById('lcDropZone');
@@ -376,7 +379,7 @@ function handleLcFile(file){
   reader.onload = function(e){
     try{
       var raw = JSON.parse(e.target.result);
-      applyLcJson(raw, 'ファイル: '+file.name);
+      applyLcJson(raw, 'ファイル: '+file.name, 'manual');
     }catch(err){
       showLcMsg('❌ JSONの解析に失敗しました: ' + err.message, 'err');
     }
@@ -385,7 +388,8 @@ function handleLcFile(file){
 }
 
 /* ── SharePoint LC JSON 自動取得 ── */
-async function autoFetchLcJson(contractNo, lcNo){
+async function autoFetchLcJson(contractNo, lcNo, seq){
+  var stale = function(){ return seq != null && seq !== searchSeq; };   // v2.3: 新しい検索が始まったら結果を当てない
   var s = LEENAI.auth.status;
   if(s.graph !== 'ok' || (s.graphError && s.graphError.startsWith('files:'))){
     showLcMsg('⚠ SharePoint 未接続 — 手動で取込んでください', 'warn'); return;
@@ -414,11 +418,12 @@ async function autoFetchLcJson(contractNo, lcNo){
     for(var ci=0; ci<candidates.length; ci++){
       try{
         var obj = await LEENAI.sp.getJson(folders[fi]+'/'+candidates[ci]);
+        if(stale()) return;
         if(obj !== null){
-          applyLcJson(obj, 'SharePoint: '+candidates[ci]+' (フォルダ'+(fi+1)+')');
+          applyLcJson(obj, 'SharePoint: '+candidates[ci]+' (フォルダ'+(fi+1)+')', 'sp');
           return;
         }
-      }catch(e){ if(!readFail) readFail = candidates[ci]; }
+      }catch(e){ if(stale()) return; if(!readFail) readFail = candidates[ci]; }
     }
   }
 
@@ -429,6 +434,7 @@ async function autoFetchLcJson(contractNo, lcNo){
     try{ lists.push({folder:fi2, files:await LEENAI.sp.list(folders[fi2])}); }
     catch(e){ if(!listFail) listFail = (String(e&&e.message||'').match(/(\d{3})$/)||[])[1] || 'エラー'; }
   }
+  if(stale()) return;
   var pick = function(test){
     var out = [];
     lists.forEach(function(l){ l.files.forEach(function(f){ if(isLcFile(f.name) && test(f.name)) out.push({folder:l.folder, name:f.name}); }); });
@@ -445,7 +451,8 @@ async function autoFetchLcJson(contractNo, lcNo){
   var loadOne = async function(m){
     var o = null;
     try{ o = await LEENAI.sp.getJson(folders[m.folder]+'/'+m.name); }catch(e){}
-    if(o) applyLcJson(o, label(m));
+    if(stale()) return;
+    if(o) applyLcJson(o, label(m), 'sp');
     else showLcMsg('⚠ LC JSON の読込に失敗しました: '+m.name, 'warn');
   };
 
@@ -485,7 +492,7 @@ async function pickLcChoice(i){
   var m = window._lcChoiceMatches[i];
   var folders = window._lcChoiceFolders;
   var obj = await LEENAI.sp.getJson(folders[m.folder]+'/'+m.name);
-  if(obj) applyLcJson(obj, 'SharePoint: '+m.name);
+  if(obj) applyLcJson(obj, 'SharePoint: '+m.name, 'sp');
 }
 
 function detectIcc(lcData){
@@ -628,6 +635,13 @@ async function fetchData(){
   var ivNo = document.getElementById('invoiceInput').value.trim().toUpperCase();
   if(!ivNo){ showMsg('searchMsg','Invoice No. を入力してください。','warn'); return; }
 
+  /* v2.3: 前回の表示・結果・SP 取得 LC を消してから始める / 遅れて終わった前の検索は何もしない */
+  var mySeq = ++searchSeq;
+  var stale = function(){ return mySeq !== searchSeq; };
+  clearSearchState({keepInput:true});
+  var searchBtn = document.getElementById('searchBtn');
+  if(searchBtn) searchBtn.disabled = true;
+
   showLoading('データ取得中 (1/7) — Booking 検索...');
   try{
     var bkgRes = await dvGet(
@@ -635,6 +649,7 @@ async function fetchData(){
       '&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,cr49f_etd,crcf9_bl_etd,'+
       '_cr49f_sale_contract_id_value,_cr49f_region_japan_id_value,_cr49f_region_id_value'
     );
+    if(stale()) return;
     if(!bkgRes.value||bkgRes.value.length===0){
       hideLoading();
       showMsg('searchMsg','Invoice No. "'+ivNo+'" の Booking が見つかりませんでした。','err');
@@ -652,6 +667,7 @@ async function fetchData(){
         var rj = await dvGet('crcf9_region_japans('+rjGuid+')?$select=crcf9_pol');
         if(rj.crcf9_pol) pol = rj.crcf9_pol.trim() + ', JAPAN';
       }catch(e){}
+      if(stale()) return;
     }
 
     /* v2.2: Booking の POD (cr49f_regions.cr49f_pod = 港名, DOC-Z-06 §5-8) — Voyage to/via の自動選択に使う */
@@ -662,6 +678,7 @@ async function fetchData(){
         var rg = await dvGet('cr49f_regions('+bkg._cr49f_region_id_value+')?$select=cr49f_pod');
         bookingPod = (rg.cr49f_pod||'').trim();
       }catch(e){}
+      if(stale()) return;
     }
 
     updateLoading('データ取得中 (4/7) — 販売契約 取得...');
@@ -674,6 +691,19 @@ async function fetchData(){
         scNo       = sc.cr49f_sale_contract_no || '';
         tradeTerms = sc.cr49f_terms_conditions || 'CIF';
       }catch(e){}
+      if(stale()) return;
+    }
+
+    /* v2.3: 手動取込の LC は契約番号が同じときだけ使う (違えば破棄して SharePoint を探す) */
+    var useManualLc = false, lcDiscardMsg = '';
+    if(lcJsonData && lcJsonSource === 'manual'){
+      var mcNo = String(lcJsonData.contractNo||'').trim();
+      if(mcNo && scNo && sanitize(mcNo).toUpperCase() === sanitize(scNo.trim()).toUpperCase()){
+        useManualLc = true;
+      } else {
+        lcDiscardMsg = '⚠ 前回手動取込した LC JSON（契約 '+(mcNo||'—')+'）は今回の契約 '+(scNo||'—')+' と異なるため破棄しました';
+        clearLcState();
+      }
     }
 
     /* v2.2: S/I は全件 (sino 順) — sino は用途番号で、品名・POD が sino 1 以外にだけある契約がある (DOC-Z-06 §5-5・§4-5 #5, D-03 v4.6 と同じ規則) */
@@ -689,6 +719,7 @@ async function fetchData(){
         'crcf9_payment_classification,crcf9_payment_deadline'+
         '&$orderby=crcf9_sino asc&$top=4'
       );
+      if(stale()) return;
       siList = siRes.value||[];
       /* 見出し S/I: sino 1 → LC 番号あり → 先頭 */
       siData = siList.find(function(s){return s.crcf9_sino===1;})
@@ -713,6 +744,7 @@ async function fetchData(){
         );
         saleDetails = sdRes.value||[];
       }catch(e){}
+      if(stale()) return;
     }
 
     updateLoading('データ取得中 (7/7) — コンテナ・明細 取得...');
@@ -724,6 +756,7 @@ async function fetchData(){
         '&$select=crcf9_s_i_detailid,crcf9_productname,crcf9_hs_code,crcf9_price,'+
         'crcf9_sale_detail_id,_crcf9_sale_detail_id_value'
       );
+      if(stale()) return;
       (detRes.value||[]).forEach(function(det){
         var k = String(det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '').toLowerCase();
         if(!(k in detIdx)){ detIdx[k] = siDetails.length; siDetails.push(det); }
@@ -735,12 +768,19 @@ async function fetchData(){
       '&$select=crcf9_container_informationid,crcf9_container_no,crcf9_quantity,crcf9_n_w,'+
       '_crcf9_sale_detail_id_value'
     );
+    if(stale()) return;
     containers = ctRes.value||[];
 
     hideLoading();
 
     var _autoLcNo = siData && siData.cr49f_lc_no || '';
-    await autoFetchLcJson(scNo, _autoLcNo);
+    if(useManualLc){
+      showLcMsg('✅ 手動取込の LC JSON を使用（契約 '+scNo+'）', 'ok');
+    } else {
+      if(lcDiscardMsg) showMsg('searchMsg', lcDiscardMsg, 'warn');
+      await autoFetchLcJson(scNo, _autoLcNo, mySeq);
+      if(stale()) return;
+    }
 
     renderResult({
       ivNo:ivNo, bkg:bkg, pol:pol, scNo:scNo, tradeTerms:tradeTerms,
@@ -749,8 +789,11 @@ async function fetchData(){
     });
 
   }catch(e){
+    if(stale()) return;
     hideLoading();
     showMsg('searchMsg','エラー: '+e.message,'err');
+  }finally{
+    if(!stale() && searchBtn) searchBtn.disabled = false;
   }
 }
 
@@ -1085,16 +1128,50 @@ function escapeHtml(s){
 }
 
 function resetSearch(){
-  document.getElementById('stepResult').style.display='none';
-  document.getElementById('invoiceInput').value='';
-  document.getElementById('searchMsg').innerHTML='';
-  document.getElementById('cifInput').value='';
-  document.getElementById('insCalcResult').style.display='none';
-  document.getElementById('cifDisplayVal').textContent='— (上記フォームに入力)';
-  document.getElementById('copyBtnCif').style.display='none';
-  document.getElementById('iccSelect').value = lcJsonData&&lcJsonData._iccDetected || 'A';
-  document.getElementById('insCalcNote').textContent = '金額を入力すると保険金額 (×1.10) を表示します';
+  clearSearchState({keepInput:false});   // v2.3: 再検索 = 手動取込の LC も含めて全部消す
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ══════════════════════════════════════════
+   SECTION: 検索状態の初期化 (v2.3)
+   新しい検索の前に、前の検索のメッセージ・結果・コピー値・SP 取得 LC を消す
+   (他の案件の値が画面に残ってコピーされないように)
+   opts.keepInput: true = 検索開始 (入力欄と手動取込 LC は残す) / false = 再検索 (全部消す)
+══════════════════════════════════════════ */
+function clearSearchState(opts){
+  opts = opts || {};
+  var $ = function(id){ return document.getElementById(id); };
+  if(!opts.keepInput) $('invoiceInput').value = '';
+  $('searchMsg').innerHTML = '';
+  $('stepResult').style.display = 'none';
+  currentResultData = null;
+  $('cifInput').value = '';
+  $('insCalcResult').style.display = 'none';
+  $('cifDisplayVal').textContent = '— (上記フォームに入力)';
+  $('copyBtnCif').style.display = 'none';
+  $('insCalcNote').textContent = '金額を入力すると保険金額 (×1.10) を表示します';
+  $('podSelect').innerHTML = '';
+  $('podWarn').innerHTML = '';
+  $('goodsContainer').innerHTML = '';   // 品名の警告もこの中
+  if(!opts.keepInput || lcJsonSource === 'sp') clearLcState();
+  else if(lcJsonSource !== 'manual') $('lcJsonMsg').innerHTML = '';
+  Object.keys(_copyMap).forEach(function(k){ delete _copyMap[k]; });
+}
+
+/* LC JSON を取り込む前の状態へ (表示・ICC 選択も既定に戻す) */
+function clearLcState(){
+  lcJsonData = null;
+  lcJsonSource = null;
+  var zone = document.getElementById('lcDropZone');
+  if(zone){ zone.classList.remove('loaded'); zone.textContent = '📂 LC JSON をドロップ または クリックして選択'; }
+  var badge = document.getElementById('iccBadge');
+  if(badge){ badge.textContent = 'LC判別: ICC(A)'; badge.className = 'icc-badge icc-badge-a'; }
+  var msg = document.getElementById('lcJsonMsg');
+  if(msg) msg.innerHTML = '';
+  var sel = document.getElementById('iccSelect');
+  if(sel) sel.value = 'A';
+  var fi = document.getElementById('lcFileInput');
+  if(fi) fi.value = '';
 }
 </script>
 </body>
