@@ -211,13 +211,16 @@ body{min-height:100vh;font-size:13px;}
         </div>
         <!-- Thence to セレクター -->
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:6px 10px;
-             background:var(--surface2);border-radius:7px;border:1px solid var(--border);">
+             background:var(--surface2);border-radius:7px;border:1px solid var(--border);flex-wrap:wrap;">
           <span style="font-size:11px;color:var(--text2);font-weight:600;">Thence to</span>
           <select class="icc-select" id="thenceToSelect" onchange="refreshScreen2()">
             <option value="">— (空欄)</option>
             <option value="INTERIOR PLACE BY ANY CONVEYANCE">INTERIOR PLACE BY ANY CONVEYANCE</option>
           </select>
+          <span style="font-size:11px;color:var(--text2);font-weight:600;border-left:1px solid var(--border);padding-left:12px;margin-left:6px;">Voyage to/via</span>
+          <select class="icc-select" id="podSelect" onchange="refreshScreen2()"></select>
         </div>
+        <div id="podWarn"></div>
         <div class="result-grid" id="screen2Grid"></div>
         <div style="display:none;" id="screen2Text"></div>
       </div>
@@ -310,8 +313,8 @@ function startTool(){
 LEENAI.init({
   sys:     'D-04',
   name:    '保険入力支援',
-  version: '2.1',
-  date:    '2026-10-08',
+  version: '2.2',
+  date:    '2026-10-28',
   desc:    'COMPASS と LC JSON から保険申込の入力値を作成します',
   onReady: startTool,
 });
@@ -404,8 +407,9 @@ async function autoFetchLcJson(contractNo, lcNo){
   }
 
   var folders = LEENAI.SP.PATH.LC_JSON;
+  var readFail = '';   // ファイルはあるが読めなかったもの (v2.2 — 原因別の表示用)
 
-  /* STEP 1: 正確なファイル名で試す */
+  /* STEP 1: 正確なファイル名で試す (getJson は「ない」= null、それ以外の失敗は例外) */
   for(var fi=0; fi<folders.length; fi++){
     for(var ci=0; ci<candidates.length; ci++){
       try{
@@ -414,40 +418,49 @@ async function autoFetchLcJson(contractNo, lcNo){
           applyLcJson(obj, 'SharePoint: '+candidates[ci]+' (フォルダ'+(fi+1)+')');
           return;
         }
-      }catch(e){}
+      }catch(e){ if(!readFail) readFail = candidates[ci]; }
     }
   }
 
-  /* STEP 2: 目録から契約番号で検索 */
-  var allMatches = [];
+  /* STEP 2: 目録から契約番号で検索 (D-01 syncFromSP と同じく ACL・SI・BL・TT_BASE は除く) */
+  var isLcFile = function(n){ return n.endsWith('.json') && !/_ACL_|_SI_|_BL_|_TT_BASE/.test(n); };
+  var lists = [], listFail = '';
   for(var fi2=0; fi2<folders.length; fi2++){
-    try{
-      var files = await LEENAI.sp.list(folders[fi2]);
-      files.filter(function(f){
-        return f.name.startsWith(scSan+'_') && f.name.endsWith('.json') && !f.name.includes('_TT_BASE');
-      }).forEach(function(f){ allMatches.push({folder:fi2, name:f.name}); });
-    }catch(e){}
+    try{ lists.push({folder:fi2, files:await LEENAI.sp.list(folders[fi2])}); }
+    catch(e){ if(!listFail) listFail = (String(e&&e.message||'').match(/(\d{3})$/)||[])[1] || 'エラー'; }
   }
+  var pick = function(test){
+    var out = [];
+    lists.forEach(function(l){ l.files.forEach(function(f){ if(isLcFile(f.name) && test(f.name)) out.push({folder:l.folder, name:f.name}); }); });
+    return out;
+  };
+  var allMatches = pick(function(n){ return n.startsWith(scSan+'_'); });
+  var byLc = false;
+  /* 契約番号で 0 件 → LC 番号を含むファイル (D-01 で契約番号を違えて保存した場合) */
+  if(allMatches.length === 0 && lcFirst){
+    allMatches = pick(function(n){ return n.includes(lcFirst); });
+    byLc = allMatches.length > 0;
+  }
+  var label = function(m){ return 'SharePoint: '+m.name+' (フォルダ'+(m.folder+1)+')'+(byLc ? ' (LC番号で検出 — 契約番号不一致: '+m.name+')' : ''); };
+  var loadOne = async function(m){
+    var o = null;
+    try{ o = await LEENAI.sp.getJson(folders[m.folder]+'/'+m.name); }catch(e){}
+    if(o) applyLcJson(o, label(m));
+    else showLcMsg('⚠ LC JSON の読込に失敗しました: '+m.name, 'warn');
+  };
 
   if(allMatches.length === 0){
-    showLcMsg('⚠ LC JSON が SharePoint に見つかりません — 手動で取込んでください', 'warn'); return;
-  }
-  if(allMatches.length === 1){
-    var m1 = allMatches[0];
-    var obj1 = await LEENAI.sp.getJson(folders[m1.folder]+'/'+m1.name);
-    if(obj1) applyLcJson(obj1, 'SharePoint: '+m1.name+' (フォルダ'+(m1.folder+1)+')');
+    if(listFail)      showLcMsg('⚠ SharePoint の検索に失敗しました（'+listFail+'）— 再検索または手動取込', 'warn');
+    else if(readFail) showLcMsg('⚠ LC JSON の読込に失敗しました: '+readFail, 'warn');
+    else showLcMsg('⚠ LC JSON が SharePoint にありません（契約 '+contractNo+' / LC '+(lcFirst||'—')+'）— D-01 で LC が SharePoint に保存されているか確認してください。手動取込も可能です', 'warn');
     return;
   }
+  if(allMatches.length === 1){ await loadOne(allMatches[0]); return; }
 
   /* 複数: LC番号先頭語でさらに絞り込む */
-  if(lcFirst){
+  if(lcFirst && !byLc){
     var filtered = allMatches.filter(function(f){ return f.name.includes(lcFirst); });
-    if(filtered.length === 1){
-      var mf = filtered[0];
-      var objf = await LEENAI.sp.getJson(folders[mf.folder]+'/'+mf.name);
-      if(objf) applyLcJson(objf, 'SharePoint: '+mf.name+' (フォルダ'+(mf.folder+1)+')');
-      return;
-    }
+    if(filtered.length === 1){ await loadOne(filtered[0]); return; }
   }
 
   /* それでも複数: 選択ボタン表示 */
@@ -507,18 +520,72 @@ function detectIcc(lcData){
 function showLcMsg(msg, type){
   var el = document.getElementById('lcJsonMsg');
   if(!el) return;
-  var cls = {ok:'color:var(--ok)',err:'color:var(--danger)',info:'color:var(--text2)'}[type]||'';
+  var cls = {ok:'color:var(--ok)',err:'color:var(--danger)',info:'color:var(--text2)',warn:'color:var(--warn)'}[type]||'';
   el.innerHTML = '<span style="'+cls+'">'+escapeHtml(msg)+'</span>';
 }
 
-function refreshScreen2(){
-  if(!currentResultData) return;
-  var rows = document.querySelectorAll('#screen2Grid .rg-label-fixed');
-  rows.forEach(function(label){
-    if(label.textContent.trim() === 'Thence to'){
-      label.nextElementSibling.textContent = document.getElementById('thenceToSelect').value || '—';
-    }
-  });
+function refreshScreen2(){ renderScreen2(); }
+
+/* ── 画面② (v2.2) — Thence to・Voyage to/via のどちらを変えてもここで描き直す ── */
+function renderScreen2(){
+  var d = currentResultData;
+  if(!d) return;
+  var thenceTo = document.getElementById('thenceToSelect')&&document.getElementById('thenceToSelect').value || '';
+  var ps = document.getElementById('podSelect');
+  var pod = ps && ps.value!=='' ? (d.podCands[+ps.value]||'') : '';
+  var s2Items = [
+    ['From (interior port)', 'INTERIOR PLACE IN JAPAN', false],
+    ['Ship or Vessel',       d.ship,                    true],
+    ['Sailing on or about',  d.etdFormatted,            true],
+    ['Voyage at and from',   d.pol,                     true],
+    ['Voyage to/via',        pod,                       true],
+    ['Thence to',            thenceTo,                  false],
+  ];
+  renderGrid('screen2Grid', s2Items);
+  document.getElementById('screen2Text').textContent = '';
+}
+
+/* POD 候補: 見出し S/I の pod_bl1~3 → place_of_delivery_1~3 → 他の S/I の同じ欄 (空・重複を除く) */
+function buildPodCandidates(siHead, siList){
+  var out = [], seen = {};
+  var add = function(v){ v = String(v||'').trim(); var k = v.toUpperCase(); if(v && !seen[k]){ seen[k] = 1; out.push(v); } };
+  var from = function(s){
+    if(!s) return;
+    ['crcf9_pod_bl1','crcf9_pod_bl2','crcf9_pod_bl3','crcf9_place_of_delivery_1','crcf9_place_of_delivery_2','crcf9_place_of_delivery_3']
+      .forEach(function(f){ add(s[f]); });
+  };
+  from(siHead);
+  siList.forEach(function(s){ if(!siHead || s.cr49f_s_iid !== siHead.cr49f_s_iid) from(s); });
+  return out;
+}
+function podMatchesBooking(cand, bookingPod){
+  if(!bookingPod) return false;
+  var w = bookingPod.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('(^|[^A-Z0-9])'+w+'([^A-Z0-9]|$)').test(cand.toUpperCase());
+}
+/* 既定の選択: Booking の POD を語として含む候補 (複数なら先頭) → なければ先頭 + 警告 */
+function setupPodSelect(cands, bookingPod){
+  var sel = document.getElementById('podSelect'), warn = document.getElementById('podWarn');
+  if(!sel) return;
+  var hit = -1;
+  sel.innerHTML = cands.map(function(c, i){
+    var m = podMatchesBooking(c, bookingPod);
+    if(m && hit < 0) hit = i;
+    return '<option value="'+i+'">'+escapeHtml(c)+(m ? '　✓ Booking' : '')+'</option>';
+  }).join('');
+  var msg = '';
+  if(!cands.length){
+    sel.innerHTML = '<option value="">— (S/I に POD なし)</option>';
+    msg = '⚠ S/I に POD がありません — 手動入力してください';
+  } else if(hit >= 0){
+    sel.value = String(hit);
+  } else {
+    sel.value = '0';
+    msg = bookingPod
+      ? '⚠ Booking の POD ('+bookingPod+') が S/I の候補にありません — 選択を確認してください'
+      : '⚠ Booking に POD がありません — S/I の第 1 候補を表示しています。選択を確認してください';
+  }
+  if(warn) warn.innerHTML = msg ? '<div class="alert alert-warn" style="margin:-6px 0 10px;font-size:11px;">'+escapeHtml(msg)+'</div>' : '';
 }
 
 function onIccChange(){
@@ -561,12 +628,12 @@ async function fetchData(){
   var ivNo = document.getElementById('invoiceInput').value.trim().toUpperCase();
   if(!ivNo){ showMsg('searchMsg','Invoice No. を入力してください。','warn'); return; }
 
-  showLoading('データ取得中 (1/5) — Booking 検索...');
+  showLoading('データ取得中 (1/7) — Booking 検索...');
   try{
     var bkgRes = await dvGet(
       'cr49f_bookings?$filter='+encodeURIComponent("cr49f_invoice_no eq '"+ivNo+"'")+
       '&$select=cr49f_bookingid,cr49f_invoice_no,cr49f_main_ship_name,cr49f_etd,crcf9_bl_etd,'+
-      '_cr49f_sale_contract_id_value,_cr49f_region_japan_id_value'
+      '_cr49f_sale_contract_id_value,_cr49f_region_japan_id_value,_cr49f_region_id_value'
     );
     if(!bkgRes.value||bkgRes.value.length===0){
       hideLoading();
@@ -580,14 +647,24 @@ async function fetchData(){
 
     var pol = 'ANY PORT IN JAPAN';
     if(rjGuid){
-      updateLoading('データ取得中 (2/5) — POL 取得...');
+      updateLoading('データ取得中 (2/7) — POL 取得...');
       try{
         var rj = await dvGet('crcf9_region_japans('+rjGuid+')?$select=crcf9_pol');
         if(rj.crcf9_pol) pol = rj.crcf9_pol.trim() + ', JAPAN';
       }catch(e){}
     }
 
-    updateLoading('データ取得中 (3/5) — 販売契約 取得...');
+    /* v2.2: Booking の POD (cr49f_regions.cr49f_pod = 港名, DOC-Z-06 §5-8) — Voyage to/via の自動選択に使う */
+    var bookingPod = '';
+    if(bkg._cr49f_region_id_value){
+      updateLoading('データ取得中 (3/7) — POD 取得...');
+      try{
+        var rg = await dvGet('cr49f_regions('+bkg._cr49f_region_id_value+')?$select=cr49f_pod');
+        bookingPod = (rg.cr49f_pod||'').trim();
+      }catch(e){}
+    }
+
+    updateLoading('データ取得中 (4/7) — 販売契約 取得...');
     var scNo = '', tradeTerms = 'CIF';
     if(scGuid){
       try{
@@ -599,22 +676,34 @@ async function fetchData(){
       }catch(e){}
     }
 
-    updateLoading('データ取得中 (4/5) — S/I データ取得...');
-    var siData = null, siGuid = '';
+    /* v2.2: S/I は全件 (sino 順) — sino は用途番号で、品名・POD が sino 1 以外にだけある契約がある (DOC-Z-06 §5-5・§4-5 #5, D-03 v4.6 と同じ規則) */
+    updateLoading('データ取得中 (5/7) — S/I データ取得...');
+    var siData = null, siList = [];
     if(scGuid){
       var siRes = await dvGet(
-        'cr49f_s_is?$filter='+encodeURIComponent('_cr49f_sale_contract_id_value eq '+scGuid+' and crcf9_sino eq 1')+
-        '&$select=cr49f_s_iid,cr49f_lc_no,crcf9_vo_no,crcf9_po_vo,'+
-        'crcf9_consignee,crcf9_notify_party,crcf9_address,crcf9_pod_bl1,crcf9_place_of_delivery_1,'+
-        'crcf9_payment_classification,crcf9_payment_deadline'
+        'cr49f_s_is?$filter='+encodeURIComponent('_cr49f_sale_contract_id_value eq '+scGuid)+
+        '&$select=cr49f_s_iid,crcf9_sino,cr49f_lc_no,crcf9_vo_no,crcf9_po_vo,'+
+        'crcf9_consignee,crcf9_notify_party,crcf9_address,'+
+        'crcf9_pod_bl1,crcf9_pod_bl2,crcf9_pod_bl3,'+
+        'crcf9_place_of_delivery_1,crcf9_place_of_delivery_2,crcf9_place_of_delivery_3,'+
+        'crcf9_payment_classification,crcf9_payment_deadline'+
+        '&$orderby=crcf9_sino asc&$top=4'
       );
-      if(siRes.value&&siRes.value.length>0){
-        siData = siRes.value[0];
-        siGuid = siData.cr49f_s_iid;
+      siList = siRes.value||[];
+      /* 見出し S/I: sino 1 → LC 番号あり → 先頭 */
+      siData = siList.find(function(s){return s.crcf9_sino===1;})
+            || siList.find(function(s){return s.cr49f_lc_no;})
+            || (siList.length>0 ? siList[0] : null);
+      if(siData){
+        /* 見出しが空なら他の S/I から補う (sino 順の最初の値) */
+        siData = Object.assign({}, siData);
+        ['cr49f_lc_no','crcf9_vo_no','crcf9_po_vo'].forEach(function(f){
+          if(!siData[f]){ var o = siList.find(function(s){return s[f];}); if(o) siData[f] = o[f]; }
+        });
       }
     }
 
-    updateLoading('データ取得中 (5/6) — 販売明細・単価 取得...');
+    updateLoading('データ取得中 (6/7) — 販売明細・単価 取得...');
     var saleDetails = [];
     if(scGuid){
       try{
@@ -626,15 +715,20 @@ async function fetchData(){
       }catch(e){}
     }
 
-    updateLoading('データ取得中 (6/6) — コンテナ・明細 取得...');
-    var siDetails = [], containers = [];
-    if(siGuid){
+    updateLoading('データ取得中 (7/7) — コンテナ・明細 取得...');
+    /* v2.2: 全 S/I の明細を sino 順に統合 — sale_detail ごとに 1 行。先の行の品名が空で後の行にあれば後の行を採用 (D-03 v4.6 と同じ) */
+    var siDetails = [], containers = [], detIdx = {};
+    for(var si=0; si<siList.length; si++){
       var detRes = await dvGet(
-        'crcf9_s_i_details?$filter='+encodeURIComponent('_crcf9_s_i_id_value eq '+siGuid)+
+        'crcf9_s_i_details?$filter='+encodeURIComponent('_crcf9_s_i_id_value eq '+siList[si].cr49f_s_iid)+
         '&$select=crcf9_s_i_detailid,crcf9_productname,crcf9_hs_code,crcf9_price,'+
         'crcf9_sale_detail_id,_crcf9_sale_detail_id_value'
       );
-      siDetails = detRes.value||[];
+      (detRes.value||[]).forEach(function(det){
+        var k = String(det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '').toLowerCase();
+        if(!(k in detIdx)){ detIdx[k] = siDetails.length; siDetails.push(det); }
+        else if(!siDetails[detIdx[k]].crcf9_productname && det.crcf9_productname){ siDetails[detIdx[k]] = det; }
+      });
     }
     var ctRes = await dvGet(
       'crcf9_container_informations?$filter='+encodeURIComponent('_crcf9_booking_id_value eq '+bkgGuid)+
@@ -650,7 +744,8 @@ async function fetchData(){
 
     renderResult({
       ivNo:ivNo, bkg:bkg, pol:pol, scNo:scNo, tradeTerms:tradeTerms,
-      siData:siData, siDetails:siDetails, saleDetails:saleDetails, containers:containers
+      siData:siData, siDetails:siDetails, saleDetails:saleDetails, containers:containers,
+      siList:siList, bookingPod:bookingPod
     });
 
   }catch(e){
@@ -669,7 +764,8 @@ function renderResult(d){
   var etd = bkg.crcf9_bl_etd || bkg.cr49f_etd || '';
   var ship = bkg.cr49f_main_ship_name || '';
   var lcNo = siData&&siData.cr49f_lc_no || '';
-  var pod  = siData&&(siData.crcf9_pod_bl1 || siData.crcf9_place_of_delivery_1) || '';
+  var podCands = buildPodCandidates(siData, d.siList||[]);
+  var bookingPod = d.bookingPod||'';
   var voNoRaw = siData&&siData.crcf9_vo_no || '';
   var voNo = voNoRaw.replace(/^VO\s*NO\.?\s*/i,'').trim();
   var poVo = siData&&siData.crcf9_po_vo || '';
@@ -693,17 +789,7 @@ function renderResult(d){
   renderGrid('screen1Grid', s1Items);
   document.getElementById('screen1Text').textContent = ivNo;
 
-  var thenceTo = document.getElementById('thenceToSelect')&&document.getElementById('thenceToSelect').value || '';
-  var s2Items = [
-    ['From (interior port)', 'INTERIOR PLACE IN JAPAN', false],
-    ['Ship or Vessel',       ship,                      true],
-    ['Sailing on or about',  etdFormatted,              true],
-    ['Voyage at and from',   pol,                       true],
-    ['Voyage to/via',        pod,                       true],
-    ['Thence to',            thenceTo,                  false],
-  ];
-  renderGrid('screen2Grid', s2Items);
-  document.getElementById('screen2Text').textContent = '';
+  setupPodSelect(podCands, bookingPod);
 
   var ctByDetail = {};
   containers.forEach(function(ct){
@@ -722,10 +808,14 @@ function renderResult(d){
   });
 
   if(siDetails.length>0){
+    var pushed = {};
     siDetails.forEach(function(det){
       var sdId = det._crcf9_sale_detail_id_value || det.crcf9_sale_detail_id || '';
       var ct = ctByDetail[sdId];
       if(!ct || ct.nwKg === 0) return;
+      /* 同じ明細を 2 回数えない (S/I 明細の統合後は起きないはず) */
+      if(pushed[String(sdId).toLowerCase()]){ console.warn('[D-04] duplicate sale_detail skipped', sdId); return; }
+      pushed[String(sdId).toLowerCase()] = 1;
       var sdIdKey = (sdId||'').toLowerCase();
       var priceFromSale = salePriceMap[sdIdKey] != null ? salePriceMap[sdIdKey] : salePriceMap[sdId];
       var price = (priceFromSale != null && priceFromSale !== 0)
@@ -737,16 +827,19 @@ function renderResult(d){
         price:       price,
         bales:       ct.bales,
         nwMt:        ct.nwKg/1000,
+        nwKg:        ct.nwKg,
         sdId:        sdId,
       });
     });
   } else {
     var total = sumAllCt(ctByDetail);
     items.push({ productname:'', hsCode:'', price:0,
-      bales:total.bales, nwMt:total.nwKg/1000, sdId:'all' });
+      bales:total.bales, nwMt:total.nwKg/1000, nwKg:total.nwKg, sdId:'all' });
   }
 
-  currentResultData = { lcNo:lcNo, voNo:voNo, poVo:poVo, items:items };
+  currentResultData = { lcNo:lcNo, voNo:voNo, poVo:poVo, items:items,
+    ship:ship, etdFormatted:etdFormatted, pol:pol, podCands:podCands, bookingPod:bookingPod };
+  renderScreen2();
 
   renderGoods(currentResultData, document.getElementById('iccSelect')&&document.getElementById('iccSelect').value || 'A');
 
@@ -820,43 +913,65 @@ function renderGoods(data, iccType){
     ? '(⚠️ 保険条件: LC JSON を取込後に自動生成されます)'
     : null;
 
-  items.forEach(function(item, idx){
-    var balesStr = item.bales>0 ? item.bales : 'XX';
-    var mtStr    = item.nwMt>0  ? item.nwMt.toFixed(2) : 'XX.XX';
-    var prodRaw  = item.productname ? item.productname.toUpperCase() : 'WASTE PAPER';
-    var hasExJapan = /EX\s+JAPAN/i.test(prodRaw);
-    var prodName = hasExJapan ? prodRaw : prodRaw + ' EX JAPAN';
-    var hsLine   = item.hsCode || '';
+  /* v2.2: 品名が空なら WASTE PAPER で代替しない — 目印を入れて警告 (EX JAPAN は品名があるときだけ) */
+  var nameMissing = false;
+  var prodOf = function(item){
+    if(!item.productname){ nameMissing = true; return '[PRODUCT NAME MISSING]'; }
+    var prodRaw = item.productname.toUpperCase();
+    return /EX\s+JAPAN/i.test(prodRaw) ? prodRaw : prodRaw + ' EX JAPAN';
+  };
+  var balesOf = function(item){ return item.bales>0 ? item.bales : 'XX'; };
+  var mtOf    = function(item){ return item.nwKg>0 ? fmtMtFromKg(item.nwKg) : 'XX.XX'; };
 
-    var lines = [];
-    lines.push(prodName+', '+balesStr+'BALES, '+mtStr+'MT');
+  if(!items.length) return;   // v2.1 と同じ (何も描かない)
+  var lines = [];
+  if(items.length === 1){
+    var item = items[0];
+    lines.push(prodOf(item)+', '+balesOf(item)+'BALES, '+mtOf(item)+'MT');
+    if(lcNo)        lines.push('L/C NO. '+lcNo);
+    if(poVo)        lines.push('PURCHASE ORDER '+poVo);
+    if(voNo)        lines.push('VO NUMBER '+voNo);
+    if(item.hsCode) lines.push(item.hsCode);
+    if(insClause)   lines.push(insClause);
+  } else {
+    /* 複数品目: 品目行 + TOTAL (kg 合計から換算) + L/C・PO・VO・HS・保険条件は 1 回 */
+    var sumBales = 0, sumKg = 0, zeroBales = false, zeroKg = false, hsSeen = {}, hsLines = [];
+    items.forEach(function(it){
+      lines.push(prodOf(it)+', '+balesOf(it)+'BALES, '+mtOf(it)+'MT');
+      if(it.bales>0) sumBales += it.bales; else zeroBales = true;
+      if(it.nwKg>0)  sumKg    += it.nwKg;  else zeroKg = true;
+      if(it.hsCode && !hsSeen[it.hsCode]){ hsSeen[it.hsCode] = 1; hsLines.push(it.hsCode); }
+    });
+    lines.push('TOTAL '+(zeroBales ? 'XX' : sumBales)+'BALES, '+(zeroKg ? 'XX.XX' : fmtMtFromKg(sumKg))+'MT');
     if(lcNo)      lines.push('L/C NO. '+lcNo);
     if(poVo)      lines.push('PURCHASE ORDER '+poVo);
     if(voNo)      lines.push('VO NUMBER '+voNo);
-    if(hsLine)    lines.push(hsLine);
+    hsLines.forEach(function(h){ lines.push(h); });
     if(insClause) lines.push(insClause);
+  }
 
-    var goodsText = lines.join('\n');
-
-    var blockId = 'goodsText'+idx;
-    var btnId   = 'copyBtnGoods'+idx;
-    var div = document.createElement('div');
-    div.innerHTML =
-      (idx>0?'<hr class="item-sep">':'') +
-      '<div class="goods-header">'+
-        '<div class="goods-label">'+
-          (items.length>1
-            ? '📦 アイテム '+(idx+1)+': '+escapeHtml(prodName)
-            : '📦 Goods テキスト (貨物明細欄に貼り付け)')+
-        '</div>'+
-        '<button class="btn btn-copy" onclick="copySection(\''+blockId+'\',\''+btnId+'\')" id="'+btnId+'">📋 コピー</button>'+
+  var goodsText = lines.join('\n');
+  var blockId = 'goodsText0';
+  var btnId   = 'copyBtnGoods0';
+  var div = document.createElement('div');
+  div.innerHTML =
+    (nameMissing ? '<div class="alert alert-warn" style="margin-bottom:8px;font-size:11px;">'+escapeHtml('⚠ COMPASS の S/I に品名がありません — S/I を確認してください（コピー前に修正）')+'</div>' : '') +
+    '<div class="goods-header">'+
+      '<div class="goods-label">'+
+        (items.length>1
+          ? '📦 Goods テキスト (貨物明細欄に貼り付け) — '+items.length+' アイテム'
+          : '📦 Goods テキスト (貨物明細欄に貼り付け)')+
       '</div>'+
-      '<div class="goods-box" id="'+blockId+'_display">'+escapeHtml(goodsText)+'</div>'+
-      '<div style="display:none;" id="'+blockId+'">'+goodsText+'</div>'+
-      (insWarning ? '<div class="alert alert-warn" style="margin-top:8px;font-size:11px;">'+escapeHtml(insWarning)+'</div>' : '');
-    goodsContainer.appendChild(div);
-  });
+      '<button class="btn btn-copy" onclick="copySection(\''+blockId+'\',\''+btnId+'\')" id="'+btnId+'">📋 コピー</button>'+
+    '</div>'+
+    '<div class="goods-box" id="'+blockId+'_display">'+escapeHtml(goodsText)+'</div>'+
+    '<div style="display:none;" id="'+blockId+'">'+goodsText+'</div>'+
+    (insWarning ? '<div class="alert alert-warn" style="margin-top:8px;font-size:11px;">'+escapeHtml(insWarning)+'</div>' : '');
+  goodsContainer.appendChild(div);
 }
+
+/* MT 表示 (v2.2) — kg から換算。TOTAL も kg 合計から (表示値を足さない) */
+function fmtMtFromKg(kg){ return (Math.round(kg/10)/100).toFixed(2); }
 
 function sumAllCt(ctByDetail){
   var bales=0, nwKg=0;
